@@ -5,10 +5,13 @@ import { TabBarIcon } from '../../components/navigation/TabBarIcon';
 import { Colors } from '../../constants/Colors';
 import { useColorScheme } from '../../hooks/useColorScheme';
 
+import { SignedIn } from '@clerk/clerk-expo'
+
 export default function TabLayout() {
   const colorScheme = useColorScheme();
-
+  
   return (
+      <SignedIn>
     <Tabs
       screenOptions={{
         tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
@@ -42,5 +45,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </SignedIn>
   );
 }

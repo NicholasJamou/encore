@@ -1,10 +1,13 @@
 import { StyleSheet, Text, SafeAreaView } from 'react-native'
 import React from 'react'
+import { useUser } from '@clerk/clerk-expo'
 
 const profile = () => {
+  const { user } = useUser()
+  
   return (
     <SafeAreaView>
-      <Text>profileScreen</Text>
+      <Text>profileScreen {user?.emailAddresses[0].emailAddress}</Text>
     </SafeAreaView>
   )
 }

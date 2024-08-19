@@ -5,6 +5,7 @@ interface IUser extends Document {
   name: string;
   email: string;
   password: string;
+  phone: number;
   gender?: 'male' | 'female' | 'other';
   verified: boolean;
   verificationToken?: string;
@@ -28,6 +29,10 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   password: {
     type: String,
+    required: true,
+  },
+  phone: {
+    type: Number,
     required: true,
   },
   gender: {
@@ -56,10 +61,9 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   hobbies: [String],
 });
 
-userSchema.pre('save', async function(this: IUser, next) {
-  if (this.isModified('password')) {
-    const saltRounds = 10;
-    this.password = await bcrypt.hash(this.password, saltRounds);
+userSchema.pre('save', async function(next) {
+  if (this.isModified('password') && !this.password.startsWith('$2b$')) {
+    this.password = await bcrypt.hash(this.password, 10);
   }
   next();
 });

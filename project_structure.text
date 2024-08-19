@@ -1,0 +1,112 @@
+- .env
+- .expo
+  - devices.json
+  - README.md
+  - types
+    - router.d.ts
+  - web
+    - cache
+      - production
+        - images
+          - favicon
+            - favicon-24272cdaeff82cc5facdaccd982a6f05b60c4504704bbf94c19a6388659880bb-contain-transparent
+              - favicon-48.png
+- .gitignore
+- .yarn
+  - unplugged
+    - @clerk-shared-virtual-3e295f5ae9
+    - @react-native-gradle-plugin-npm-0.74.87-2ad4f2fa47
+    - bcrypt-npm-5.1.1-434d47322a
+    - browser-tabs-lock-npm-1.2.15-1833d8c9c7
+    - core-js-npm-3.26.1-42575888f8
+    - expo-constants-virtual-41f348010f
+    - expo-constants-virtual-932bc9cda6
+    - expo-file-system-virtual-76f44cba92
+    - expo-modules-core-npm-1.12.21-2d2e6f1595
+    - expo-npm-51.0.28-717bdf350b
+    - expo-splash-screen-virtual-1183024830
+    - jsc-android-npm-250231.0.0-8322f50944
+    - lightningcss-win32-x64-msvc-npm-1.19.0-85a11fff1e
+    - node-addon-api-npm-5.1.0-b50d00f739
+    - node-gyp-npm-10.2.0-cad1109948
+    - open-npm-6.4.0-d2020c939f
+    - open-npm-7.4.2-a378c23959
+    - open-npm-8.4.2-1f763e8b75
+    - react-native-gesture-handler-virtual-3e70060ce8
+    - react-native-reanimated-virtual-a9e70504b8
+    - react-native-safe-area-context-virtual-bd68ced753
+    - react-native-screens-virtual-0a25b55c68
+    - react-native-virtual-57641e62ed
+- api
+  - .yarn
+  - index.ts
+  - models
+    - chat.tsx
+    - user.tsx
+  - package.json
+  - TokenCache.tsx
+  - yarn.lock
+- app
+  - (auth)
+    - login.jsx
+    - register.jsx
+    - _layout.tsx
+  - (tabs)
+    - bio
+      - index.tsx
+      - _layout.tsx
+    - chat
+      - index.tsx
+      - _layout.tsx
+    - profile
+      - index.tsx
+      - _layout.tsx
+    - _layout.tsx
+  - +html.tsx
+  - +not-found.tsx
+  - index.tsx
+  - _layout.tsx
+- app.json
+- assets
+  - fonts
+    - SpaceMono-Regular.ttf
+  - images
+    - adaptive-icon.png
+    - favicon.png
+    - icon.png
+    - partial-react-logo.png
+    - react-logo.png
+    - react-logo@2x.png
+    - react-logo@3x.png
+    - splash.png
+- babel.config.js
+- components
+  - Collapsible.tsx
+  - ExternalLink.tsx
+  - HelloWave.tsx
+  - navigation
+    - TabBarIcon.tsx
+  - ParallaxScrollView.tsx
+  - ThemedText.tsx
+  - ThemedView.tsx
+  - __tests__
+    - ThemedText-test.tsx
+    - __snapshots__
+      - ThemedText-test.tsx.snap
+- constants
+  - Colors.ts
+- docs
+  - .project_structure_ignore
+- expo-env.d.ts
+- hooks
+  - useColorScheme.ts
+  - useColorScheme.web.ts
+  - useThemeColor.ts
+- metro.config.js
+- package-lock.json
+- package.json
+- README.md
+- scripts
+  - reset-project.js
+- tsconfig.json
+- yarn.lock
