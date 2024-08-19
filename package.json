@@ -19,6 +19,7 @@
     "@clerk/clerk-expo": "^2.1.1",
     "@expo/metro-runtime": "^3.2.3",
     "@expo/vector-icons": "^14.0.2",
+    "@react-native-community/datetimepicker": "^8.2.0",
     "@react-navigation/native": "^6.0.2",
     "@types/bcrypt": "^5.0.2",
     "@types/body-parser": "^1.19.5",

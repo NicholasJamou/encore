@@ -8,10 +8,12 @@ import {
   Pressable,
   Alert,
   View,
+  Platform,
 } from "react-native";
-import { MaterialIcons, Ionicons, AntDesign, Feather } from "@expo/vector-icons";
+import { MaterialIcons, Ionicons, AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
 import { useSignUp } from '@clerk/clerk-expo';
 import { useRouter, Router } from "expo-router";
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 type RouterInterface = Pick<Router, 'replace'>;
 
@@ -23,9 +25,14 @@ interface VerificationResult {
 }
 
 interface SignUpResource {
-  create: (params: { emailAddress: string; password: string; phoneNumber: string }) => Promise<any>;
-  prepareEmailAddressVerification: (params: { strategy: string }) => Promise<any>;
-  attemptEmailAddressVerification: (params: { code: string }) => Promise<any>;
+  create: (params: { 
+    emailAddress: string; 
+    password: string; 
+    phoneNumber: string;
+    firstName: string;
+    lastName: string;
+    dateOfBirth: string;
+  }) => Promise<any>;
   preparePhoneNumberVerification: (params: { strategy: string }) => Promise<any>;
   attemptPhoneNumberVerification: (params: { code: string }) => Promise<any>;
 }
@@ -36,25 +43,45 @@ interface SignUpHookResult {
 }
 
 const Register: React.FC = () => {
-  const [name, setName] = useState<string>("");
+  const [firstName, setFirstName] = useState<string>("");
+  const [lastName, setLastName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [phoneNumber, setPhoneNumber] = useState<string>("");
+  const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [pendingVerification, setPendingVerification] = useState<boolean>(false);
-  const [verificationMethod, setVerificationMethod] = useState<'email' | 'phone'>('email');
   const [code, setCode] = useState<string>("");
 
   const router = useRouter() as RouterInterface;
   const { signUp, isLoaded } = useSignUp() as SignUpHookResult;
 
+  const isAtLeast18 = (birthDate: Date): boolean => {
+    const today = new Date();
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      return age - 1 >= 18;
+    }
+    return age >= 18;
+  };
+
   const onSignUpPress = async () => {
     if (!isLoaded) return;
+
+    if (!isAtLeast18(dateOfBirth)) {
+      Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
+      return;
+    }
 
     try {
       await signUp.create({
         emailAddress: email,
         password,
         phoneNumber,
+        firstName,
+        lastName,
+        dateOfBirth: dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
       });
     
       // Prepare phone verification
@@ -67,6 +94,7 @@ const Register: React.FC = () => {
       Alert.alert("Sign-Up Error", err.errors?.[0]?.message || "An error occurred while setting up your account. Please try again.");
     }
   };
+
   const onPressVerify = async () => {
     if (!isLoaded || !signUp) {
       console.log("SignUp is not loaded");
@@ -75,35 +103,14 @@ const Register: React.FC = () => {
   
     try {
       console.log(`Verifying phone with code: ${code}`);
-      const verificationResult = await signUp.attemptPhoneNumberVerification({ code: code });
+      const verificationResult = await signUp.attemptPhoneNumberVerification({ code });
   
       console.log(`Verification result:`, verificationResult);
   
       if (verificationResult.status === 'complete' || verificationResult.verifications.phoneNumber.status === 'verified') {
         console.log("Phone verification successful, completing sign-up");
-        
-        try {
-          // Complete the sign-up process
-          const completeSignUp = await signUp.create({
-            phoneNumber,
-            password,
-            emailAddress: email // optional
-          });
-  
-          console.log("Sign-up completed:", completeSignUp);
-  
-          if (completeSignUp.status === 'complete') {
-            console.log("User successfully created");
-            Alert.alert("Sign-Up Successful", "Your account has been created successfully!");
-            router.replace('/profile');
-          } else {
-            console.log("Unexpected status after sign-up completion:", completeSignUp.status);
-            Alert.alert("Sign-Up Issue", "Your account was created but there might be additional steps required. Please check your email or contact support.");
-          }
-        } catch (createError: any) {
-          console.error("Error completing sign-up:", JSON.stringify(createError, null, 2));
-          Alert.alert("Sign-Up Error", createError.errors?.[0]?.message || "An error occurred while creating your account. Please try again.");
-        }
+        Alert.alert("Sign-Up Successful", "Your account has been created successfully!");
+        router.replace('/profile');
       } else {
         console.log("Verification incomplete");
         Alert.alert("Verification Incomplete", "Please try verifying your phone number again.");
@@ -117,15 +124,25 @@ const Register: React.FC = () => {
   return (
     <SafeAreaView style={styles.container}>
       {!pendingVerification ? (
-        <KeyboardAvoidingView behavior="padding" style={styles.form}>
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.form}>
           <Text style={styles.title}>Register for Jivee</Text>
           
           <View style={styles.inputContainer}>
             <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
             <TextInput
-              value={name}
-              onChangeText={setName}
-              placeholder="Enter your name"
+              value={firstName}
+              onChangeText={setFirstName}
+              placeholder="Enter your first name"
+              style={styles.input}
+            />
+          </View>
+
+          <View style={styles.inputContainer}>
+            <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
+            <TextInput
+              value={lastName}
+              onChangeText={setLastName}
+              placeholder="Enter your last name"
               style={styles.input}
             />
           </View>
@@ -152,6 +169,26 @@ const Register: React.FC = () => {
             />
           </View>
 
+          <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
+            <FontAwesome name="calendar" size={24} color="black" style={styles.icon} />
+            <Text style={styles.input}>
+              {dateOfBirth.toDateString()}
+            </Text>
+          </Pressable>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={dateOfBirth}
+              mode="date"
+              display="default"
+              onChange={(event, selectedDate) => {
+                const currentDate = selectedDate || dateOfBirth;
+                setShowDatePicker(Platform.OS === 'ios');
+                setDateOfBirth(currentDate);
+              }}
+            />
+          )}
+
           <View style={styles.inputContainer}>
             <AntDesign name="lock1" size={24} color="black" style={styles.icon} />
             <TextInput
@@ -174,7 +211,7 @@ const Register: React.FC = () => {
       ) : (
         <View style={styles.verificationContainer}>
           <Text style={styles.verificationText}>
-            Enter the verification code sent to your {verificationMethod === 'email' ? 'email' : 'phone'}
+            Enter the verification code sent to your phone
           </Text>
           <TextInput
             value={code}
