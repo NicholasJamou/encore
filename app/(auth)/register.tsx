@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import {
   StyleSheet,
   Text,
-  SafeAreaView,
   KeyboardAvoidingView,
   TextInput,
   Pressable,
@@ -12,10 +11,8 @@ import {
 } from "react-native";
 import { MaterialIcons, Ionicons, AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
 import { useSignUp } from '@clerk/clerk-expo';
-import { useRouter, Router } from "expo-router";
+import { router } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
-
-type RouterInterface = Pick<Router, 'replace'>;
 
 interface VerificationResult {
   status: string;
@@ -53,7 +50,6 @@ const Register: React.FC = () => {
   const [pendingVerification, setPendingVerification] = useState<boolean>(false);
   const [code, setCode] = useState<string>("");
 
-  const router = useRouter() as RouterInterface;
   const { signUp, isLoaded } = useSignUp() as SignUpHookResult;
 
   const isAtLeast18 = (birthDate: Date): boolean => {
@@ -69,10 +65,10 @@ const Register: React.FC = () => {
   const onSignUpPress = async () => {
     if (!isLoaded) return;
 
-    if (!isAtLeast18(dateOfBirth)) {
-      Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
-      return;
-    }
+    // if (!isAtLeast18(dateOfBirth)) {
+    //   Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
+    //   return;
+    // }
 
     try {
       await signUp.create({
@@ -102,6 +98,7 @@ const Register: React.FC = () => {
     }
   
     try {
+      // router.push(`/(tabs)/profile`)
       console.log(`Verifying phone with code: ${code}`);
       const verificationResult = await signUp.attemptPhoneNumberVerification({ code });
   
@@ -110,7 +107,7 @@ const Register: React.FC = () => {
       if (verificationResult.status === 'complete' || verificationResult.verifications.phoneNumber.status === 'verified') {
         console.log("Phone verification successful, completing sign-up");
         Alert.alert("Sign-Up Successful", "Your account has been created successfully!");
-        router.replace('/profile');
+        router.push(`/(tabs)/profile`)
       } else {
         console.log("Verification incomplete");
         Alert.alert("Verification Incomplete", "Please try verifying your phone number again.");
@@ -122,7 +119,7 @@ const Register: React.FC = () => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <View style={styles.container}>
       {!pendingVerification ? (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.form}>
           <Text style={styles.title}>Register for Jivee</Text>
@@ -225,7 +222,7 @@ const Register: React.FC = () => {
           </Pressable>
         </View>
       )}
-    </SafeAreaView>
+    </View>
   );
 };
 

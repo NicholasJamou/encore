@@ -1,11 +1,11 @@
-import { StyleSheet, Text, SafeAreaView } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import React from 'react'
 
 const bio = () => {
   return (
-    <SafeAreaView>
+    <View>
       <Text>bioScreen</Text>
-    </SafeAreaView>
+    </View>
   )
 }
 

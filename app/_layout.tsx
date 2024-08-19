@@ -59,11 +59,11 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
       <ClerkProvider tokenCache = {tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       </ClerkLoaded>

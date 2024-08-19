@@ -1,3 +1,9 @@
+- %ProgramData%
+  - Microsoft
+    - Windows
+      - UUS
+        - State
+          - _active.uusver
 - .env
 - .expo
   - devices.json
@@ -43,13 +49,15 @@
   - models
     - chat.tsx
     - user.tsx
+  - nodemon.json
   - package.json
   - TokenCache.tsx
   - yarn.lock
 - app
   - (auth)
-    - login.jsx
-    - register.jsx
+    - login copy.old.tsx
+    - login.tsx
+    - register.tsx
     - _layout.tsx
   - (tabs)
     - bio
@@ -102,11 +110,15 @@
   - useColorScheme.ts
   - useColorScheme.web.ts
   - useThemeColor.ts
+- lib
+  - auth.ts
 - metro.config.js
 - package-lock.json
 - package.json
+- project_structure.text
 - README.md
 - scripts
   - reset-project.js
+- test-bcrypt.mjs
 - tsconfig.json
 - yarn.lock
