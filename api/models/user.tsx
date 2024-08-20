@@ -2,12 +2,15 @@ import mongoose, { Document, Model, Schema } from 'mongoose';
 import bcrypt from 'bcrypt';
 
 interface IUser extends Document {
-  name: string;
+  clerkId: string;
+  firstName: string;
+  lastName: string;
   email: string;
   password: string;
-  phone: number;
+  phoneNumber: string;
   gender?: 'male' | 'female' | 'other';
   verified: boolean;
+  dateOfBirth: Date;
   verificationToken?: string;
   sentRequests: mongoose.Types.ObjectId[];
   receivedRequests: mongoose.Types.ObjectId[];
@@ -18,7 +21,15 @@ interface IUser extends Document {
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
-  name: {
+  clerkId: {
+    type: String,
+    required: true,
+  },
+  firstName: {
+    type: String,
+    required: true,
+  },
+  lastName: {
     type: String,
     required: true,
   },
@@ -29,10 +40,10 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   password: {
     type: String,
-    required: true,
+    required: false,
   },
-  phone: {
-    type: Number,
+  phoneNumber: {
+    type: String,
     required: true,
   },
   gender: {
@@ -42,6 +53,10 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   verified: {
     type: Boolean,
     default: false,
+  },
+  dateOfBirth: {
+    type: Date,
+    required: true,
   },
   verificationToken: String,
   sentRequests: [{

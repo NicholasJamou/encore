@@ -13,6 +13,7 @@ import { MaterialIcons, Ionicons, AntDesign, Feather, FontAwesome } from "@expo/
 import { useSignUp } from '@clerk/clerk-expo';
 import { router } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import axios from 'axios';
 
 interface VerificationResult {
   status: string;
@@ -28,10 +29,11 @@ interface SignUpResource {
     phoneNumber: string;
     firstName: string;
     lastName: string;
-    dateOfBirth: string;
   }) => Promise<any>;
   preparePhoneNumberVerification: (params: { strategy: string }) => Promise<any>;
+  prepareEmailAddressVerification: (params: { strategy: string }) => Promise<any>;
   attemptPhoneNumberVerification: (params: { code: string }) => Promise<any>;
+  attemptEmailAddressVerification: (params: { code: string }) => Promise<any>;
 }
 
 interface SignUpHookResult {
@@ -77,11 +79,11 @@ const Register: React.FC = () => {
         phoneNumber,
         firstName,
         lastName,
-        dateOfBirth: dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
       });
     
-      // Prepare phone verification
-      await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
+      // TODO: change it to phone verification
+      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
+      // await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
 
       console.log("Sign-up initialized, phone verification prepared");
       setPendingVerification(true);
@@ -100,23 +102,52 @@ const Register: React.FC = () => {
     try {
       // router.push(`/(tabs)/profile`)
       console.log(`Verifying phone with code: ${code}`);
-      const verificationResult = await signUp.attemptPhoneNumberVerification({ code });
+
+      // TODO: change it to phone verification
+      const verificationResult = await signUp.attemptEmailAddressVerification({ code });
+      // const verificationResult = await signUp.attemptPhoneNumberVerification({ code });
+
+      
   
       console.log(`Verification result:`, verificationResult);
   
-      if (verificationResult.status === 'complete' || verificationResult.verifications.phoneNumber.status === 'verified') {
-        console.log("Phone verification successful, completing sign-up");
+      //TODO change to phone verification
+      if (verificationResult.status === 'complete' || verificationResult.verifications.emailAddress.status === 'verified') {
+
+        //write to mongoDB
+        try {
+          const userData = {
+            clerkId: verificationResult.createdUserId,
+            email,
+            phoneNumber,
+            firstName,
+            lastName,
+            dateOfBirth: dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
+          };
+  
+          console.log("Sending user data to server:", userData);
+  
+          const response = await axios.post("http://192.168.0.32:3000/register", userData);
+          
+        console.log("MongoDB successfuly registered user");
         Alert.alert("Sign-Up Successful", "Your account has been created successfully!");
-        router.push(`/(tabs)/profile`)
-      } else {
-        console.log("Verification incomplete");
-        Alert.alert("Verification Incomplete", "Please try verifying your phone number again.");
+        router.push(`/(tabs)/profile`);
+      } catch (error) {
+        console.error("Error registering user in MongoDB:", error);
+        if (axios.isAxiosError(error)) {
+          console.error("Axios error details:", error.response?.data || error.message);
+        }
+        Alert.alert("Registration Error", "Failed to register user in the database. Please try again.");
       }
-    } catch (err: any) {
-      console.error("Verification error:", JSON.stringify(err, null, 2));
-      Alert.alert("Verification Error", err.errors?.[0]?.message || "An unknown error occurred during verification.");
+    } else {
+      console.log("Verification incomplete");
+      Alert.alert("Verification Incomplete", "Please try verifying your email again.");
     }
-  };
+  } catch (err: any) {
+    console.error("Verification error:", JSON.stringify(err, null, 2));
+    Alert.alert("Verification Error", err.errors?.[0]?.message || "An unknown error occurred during verification.");
+  }
+};
 
   return (
     <View style={styles.container}>
