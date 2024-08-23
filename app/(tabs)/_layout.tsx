@@ -58,12 +58,12 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
-        name="bio"
+        name="events"
         options={{
-          title: 'Bio',
+          title: 'Events',
           headerShown: true,
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={icons.profile} focused={focused} />
+            <TabIcon source={icons.calendar} focused={focused} />
           ),
         }}
       />
