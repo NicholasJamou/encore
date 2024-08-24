@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
-import { StyleSheet, Text, View, FlatList, Image, ActivityIndicator, RefreshControl, TextInput, TouchableOpacity, Modal, Button } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { StyleSheet, Text, View, FlatList, TextInput, TouchableOpacity, Modal, Button, RefreshControl } from 'react-native';
+import { useInfiniteQuery, useMutation, useQueryClient, useQuery } from '@tanstack/react-query';
 import debounce from 'lodash/debounce';
 import { useAuth } from '@clerk/clerk-expo';
-import EventItem from '../../components/EventItem'; 
+import EventItem from '../../components/EventItem';
 
-// Define the structure of an Event object
 interface Event {
   _id: string;
   City: string;
@@ -14,7 +14,6 @@ interface Event {
   Venue: string;
 }
 
-// Define the structure of pagination information
 interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -23,338 +22,169 @@ interface PaginationInfo {
   hasPrevPage: boolean;
 }
 
-// Main EventsScreen component
+interface EventsResponse {
+  events: Event[];
+  pagination: PaginationInfo;
+}
+
 const EventsScreen = () => {
-  // State variables
-  const [events, setEvents] = useState<Event[]>([]); // List of events
-  const [loading, setLoading] = useState(false); // Loading state for events
-  const [error, setError] = useState<string | null>(null); // Error state
-  const [page, setPage] = useState(1); // Current page number
-  const [paginationInfo, setPaginationInfo] = useState<PaginationInfo | null>(null); // Pagination information
-  const [refreshing, setRefreshing] = useState(false); // Pull-to-refresh state
-  const [searchQuery, setSearchQuery] = useState(''); // Search query
-  const [cityFilter, setCityFilter] = useState(''); // City filter
-  const [showCityFilter, setShowCityFilter] = useState(false); // Show/hide city filter modal
-  const [cities, setCities] = useState<string[]>([]); // List of available cities
-  const [noResults, setNoResults] = useState(false); // No results state
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set()); // Selected events (unused in this version)
-  const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set()); // Events being saved/removed
-
-  // Get the user ID from Clerk authentication
+  const [searchQuery, setSearchQuery] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
+  const [showCityFilter, setShowCityFilter] = useState(false);
   const { userId } = useAuth();
+  const queryClient = useQueryClient();
 
-  // State for saved events
-  const [loadingSavedEvents, setLoadingSavedEvents] = useState(false);
-  const [savedEventsError, setSavedEventsError] = useState<string | null>(null);
-  const [savedEventIds, setSavedEventIds] = useState<Set<string>>(new Set());
-
-  // Function to fetch saved events for the user
-  const fetchSavedEvents = useCallback(async () => {
-    if (!userId) {
-      console.error('User not authenticated');
-      return;
+  const fetchEvents = async ({ pageParam = 1 }) => {
+    const queryParams = new URLSearchParams({
+      page: pageParam.toString(),
+      limit: '20',
+      ...(searchQuery && { search: searchQuery }),
+      ...(cityFilter && { city: cityFilter }),
+    });
+    const url = `http://192.168.0.32:3000/events?${queryParams}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Network response was not ok');
     }
-  
-    setLoadingSavedEvents(true);
-    setSavedEventsError(null);
-  
-    try {
-      const response = await fetch(`http://192.168.0.32:3000/user/${userId}/events`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch saved events');
-      }
-      const savedEvents = await response.json();
-      console.log('Fetched saved events:', savedEvents);
-      setSavedEventIds(new Set(savedEvents));
-    } catch (err) {
-      console.error('Error fetching saved events:', err);
-      setSavedEventsError('Failed to load saved events. Please try again.');
-    } finally {
-      setLoadingSavedEvents(false);
-    }
-  }, [userId]);
+    return response.json() as Promise<EventsResponse>;
+  };
 
-  // Function to fetch events
-  const fetchEvents = useCallback(async (pageToFetch = 1, search = searchQuery, city = cityFilter) => {
-    if (loading || (paginationInfo && !paginationInfo.hasNextPage && pageToFetch !== 1)) return;
-    try {
-      setLoading(true);
-      setNoResults(false);
-      const queryParams = new URLSearchParams({
-        page: pageToFetch.toString(),
-        limit: '20',
-        ...(search && { search }),
-        ...(city && { city }),
+  const eventsQuery = useInfiniteQuery({
+    queryKey: ['events', searchQuery, cityFilter],
+    queryFn: fetchEvents,
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => 
+      lastPage.pagination.hasNextPage ? lastPage.pagination.currentPage + 1 : undefined,
+  });
+
+  const fetchSavedEvents = async () => {
+    if (!userId) throw new Error('User not authenticated');
+    const response = await fetch(`http://192.168.0.32:3000/user/${userId}/events`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch saved events');
+    }
+    return response.json();
+  };
+
+  const savedEventsQuery = useQuery({
+    queryKey: ['savedEventIds', userId],
+    queryFn: fetchSavedEvents,
+    enabled: !!userId,
+  });
+
+  const saveEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await fetch('http://192.168.0.32:3000/user/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, eventIds: [eventId] }),
       });
-      const url = `http://192.168.0.32:3000/events?${queryParams}`;
-      console.log('Fetching URL:', url);
-      
-      // Set up a timeout for the fetch request
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-      
-      const response = await fetch(url, { signal: controller.signal });
-      clearTimeout(timeoutId);
-      
-      console.log('Response status:', response.status);
-      
-      if (response.status === 404) {
-        setNoResults(true);
-        setEvents([]);
-        setPaginationInfo(null);
-        setError(null);
-        return;
-      }
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Error response:', errorText);
-        throw new Error(`Network response was not ok: ${response.status} ${errorText}`);
-      }
-      
-      const data = await response.json();
-      console.log('Received data:', JSON.stringify(data, null, 2));
-      
-      if (pageToFetch === 1) {
-        setEvents(data.events);
-      } else {
-        setEvents(prevEvents => [...prevEvents, ...data.events]);
-      }
-      setPaginationInfo(data.pagination);
-      setPage(pageToFetch + 1);
-      setError(null);
+      if (!response.ok) throw new Error('Failed to save event');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['savedEventIds', userId] });
+    },
+  });
 
-      // Update cities list
-      const newCities = Array.from(new Set(data.events.map((event: Event) => event.City)));
-      setCities(prevCities => Array.from(new Set([...prevCities, ...newCities])) as string[]);
-    } catch (err) {
-      if (err.name === 'AbortError') {
-        console.error('Request timed out');
-      } else {
-        console.error('Error fetching events:', err);
-      }
-      setError(`Failed to fetch events: ${err.message}`);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [searchQuery, cityFilter]);
+  const removeEventMutation = useMutation({
+    mutationFn: async (eventId: string) => {
+      const response = await fetch('http://192.168.0.32:3000/user/events', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, eventIds: [eventId] }),
+      });
+      if (!response.ok) throw new Error('Failed to remove event');
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['savedEventIds', userId] });
+    },
+  });
 
-  // Debounce search to prevent too many API calls
-  const debouncedSearch = useRef(
-    debounce((search: string) => {
-      setPage(1);
-      fetchEvents(1, search, cityFilter);
-    }, 300)
-  ).current;
 
-  // Effect to trigger search when searchQuery changes
-  useEffect(() => {
-    debouncedSearch(searchQuery);
-  }, [searchQuery, debouncedSearch]);
 
-  // Effect to fetch events on initial load
-  useEffect(() => {
-    console.log('Triggering initial fetch');
-    fetchEvents(1);
-  }, []);
-  
-  // Effect to fetch saved events when user ID changes
-  useEffect(() => {
-    if (userId) {
-      console.log('Fetching saved events for user:', userId);
-      fetchSavedEvents();
-    }
-  }, [userId, fetchSavedEvents]);
+  const debouncedSearch = useMemo(
+    () => debounce((search: string) => {
+      setSearchQuery(search);
+    }, 300),
+    []
+  );
 
-  // Function to handle loading more events
-  const handleLoadMore = useCallback(() => {
-    if (!loading && paginationInfo?.hasNextPage) {
-      fetchEvents(page);
-    }
-  }, [loading, paginationInfo, fetchEvents, page]);
-
-  // Function to handle pull-to-refresh
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    fetchEvents(1);
-    if (userId) {
-      fetchSavedEvents();
-    }
-  }, [fetchEvents, userId, fetchSavedEvents]);
-
-  // Function to handle city filter
   const handleCityFilter = useCallback((city: string) => {
     setCityFilter(city);
     setShowCityFilter(false);
-    setPage(1);
-    fetchEvents(1, searchQuery, city);
-  }, [fetchEvents, searchQuery]);
+  }, []);
 
-  // Function to save an event
-  const saveEvent = useCallback(async (eventId: string) => {
-    if (!userId) {
-      console.error('User not authenticated');
-      return;
-    }
-  
-    setSavingEvents(prev => new Set(prev).add(eventId));
-    try {
-      const response = await fetch('http://192.168.0.32:3000/user/events', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          eventIds: [eventId],
-        }),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to save event');
-      }
-  
-      const result = await response.json();
-      console.log('Event saved successfully:', result);
-      setSavedEventIds(prev => new Set(prev).add(eventId));
-    } catch (err) {
-      console.error('Error saving event:', err);
-      // Optionally, show an error message to the user
-    } finally {
-      setSavingEvents(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(eventId);
-        return newSet;
-      });
-    }
-  }, [userId]);
-
-  // Function to remove an event
-  const removeEvent = useCallback(async (eventId: string) => {
-    if (!userId) {
-      console.error('User not authenticated');
-      return;
-    }
-  
-    setSavingEvents(prev => new Set(prev).add(eventId));
-    try {
-      const response = await fetch('http://192.168.0.32:3000/user/events', {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          eventIds: [eventId],
-        }),
-      });
-  
-      if (!response.ok) {
-        throw new Error('Failed to remove event');
-      }
-  
-      const result = await response.json();
-      console.log('Event removed successfully:', result);
-      setSavedEventIds(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(eventId);
-        return newSet;
-      });
-    } catch (err) {
-      console.error('Error removing event:', err);
-      // Optionally, show an error message to the user
-    } finally {
-      setSavingEvents(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(eventId);
-        return newSet;
-      });
-    }
-  }, [userId]);
-
-  // Function to handle selecting/deselecting an event
   const handleSelectEvent = useCallback((eventId: string) => {
+    const savedEventIds = new Set(savedEventsQuery.data);
     if (savedEventIds.has(eventId)) {
-      removeEvent(eventId);
+      removeEventMutation.mutate(eventId);
     } else {
-      saveEvent(eventId);
+      saveEventMutation.mutate(eventId);
     }
-  }, [savedEventIds, saveEvent, removeEvent]);
-  
-  // Function to render a single event item
+  }, [savedEventsQuery.data, removeEventMutation, saveEventMutation]);
+
   const renderEvent = useCallback(({ item }: { item: Event }) => {
+    const savedEventIds = new Set(savedEventsQuery.data);
     const isSelected = savedEventIds.has(item._id);
-    console.log(`Rendering event ${item._id}, isSelected: ${isSelected}`);
+    const isSaving = saveEventMutation.isPending || removeEventMutation.isPending;
     return (
       <EventItem 
-        key={item._id}
         item={item} 
         onSelect={handleSelectEvent}
         isSelected={isSelected}
-        isSaving={savingEvents.has(item._id)}
+        isSaving={isSaving}
       />
     );
-  }, [handleSelectEvent, savedEventIds, savingEvents]);
+  }, [savedEventsQuery.data, saveEventMutation.isPending, removeEventMutation.isPending, handleSelectEvent]);
 
-  // Function to extract key for FlatList
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
-  // Function to render footer (loading indicator)
-  const renderFooter = () => {
-    if (!loading) return null;
-    return (
-      <View style={styles.footer}>
-        <ActivityIndicator size="large" />
-      </View>
-    );
-  };
+  const handleLoadMore = useCallback(() => {
+    if (eventsQuery.hasNextPage) {
+      eventsQuery.fetchNextPage();
+    }
+  }, [eventsQuery]);
 
-  // Function to render the main content
+  const handleRefresh = useCallback(() => {
+    eventsQuery.refetch();
+    savedEventsQuery.refetch();
+  }, [eventsQuery, savedEventsQuery]);
+
   const renderContent = () => {
-    if (loading && events.length === 0) {
-      return <ActivityIndicator size="large" />;
+    if (eventsQuery.isLoading) {
+      return <Text>Loading events...</Text>;
     }
-  
-    if (loadingSavedEvents) {
-      return <ActivityIndicator size="large" />;
+
+    if (eventsQuery.isError) {
+      return <Text>Error: {eventsQuery.error.message}</Text>;
     }
-  
-    if (savedEventsError) {
-      return (
-        <View>
-          <Text>{savedEventsError}</Text>
-          <Button title="Retry" onPress={fetchSavedEvents} />
-        </View>
-      );
-    }
-  
-    if (noResults) {
+
+    const allEvents = eventsQuery.data?.pages.flatMap((page, pageIndex) => 
+      page.events.map(event => ({
+        ...event,
+        uniqueId: `${pageIndex}-${event._id}` // Create a unique ID for each event
+      }))
+    ) || [];
+
+    if (allEvents.length === 0) {
       return <Text style={styles.noResultsText}>No events found. Try adjusting your search or filters.</Text>;
     }
-  
+
     return (
       <FlatList
-        data={events}
+        data={allEvents}
         renderItem={renderEvent}
-        keyExtractor={keyExtractor}
-        ListEmptyComponent={<Text style={styles.emptyText}>No events found</Text>}
-        ListFooterComponent={renderFooter}
+        keyExtractor={(item) => item.uniqueId} // Use the new uniqueId as the key
         onEndReached={handleLoadMore}
         onEndReachedThreshold={0.5}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+          <RefreshControl 
+            refreshing={eventsQuery.isFetching && !eventsQuery.isFetchingNextPage} 
+            onRefresh={handleRefresh} 
+          />
         }
-        initialNumToRender={10}
-        maxToRenderPerBatch={5}
-        updateCellsBatchingPeriod={50}
-        windowSize={21}
-        removeClippedSubviews={true}
-        getItemLayout={(data, index) => ({
-          length: 100,
-          offset: 100 * index,
-          index,
-        })}
       />
     );
   };
@@ -365,8 +195,7 @@ const EventsScreen = () => {
         <TextInput
           style={styles.searchInput}
           placeholder="Search events..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
+          onChangeText={debouncedSearch}
         />
         <TouchableOpacity style={styles.filterButton} onPress={() => setShowCityFilter(true)}>
           <Text>Filter</Text>
@@ -380,7 +209,7 @@ const EventsScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-      {renderContent()}
+            {renderContent()}
       <Modal
         visible={showCityFilter}
         transparent={true}
@@ -390,7 +219,7 @@ const EventsScreen = () => {
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>Filter by City</Text>
             <FlatList
-              data={['All Cities', ...cities]}
+              data={['All Cities', ...(eventsQuery.data?.pages[0]?.events.map(event => event.City) || [])]}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.cityItem}
@@ -399,7 +228,7 @@ const EventsScreen = () => {
                   <Text>{item}</Text>
                 </TouchableOpacity>
               )}
-              keyExtractor={(item) => item}
+              keyExtractor={(item, index) => `city-${index}-${item}`} // Add a unique key for city items
             />
             <Button title="Close" onPress={() => setShowCityFilter(false)} />
           </View>

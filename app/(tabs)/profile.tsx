@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
-import EventItem from '../../components/EventItem'; 
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import EventItem from '../../components/EventItem';
 
 interface UserData {
   firstName: string;
@@ -27,123 +28,60 @@ interface Event {
 
 const Profile = () => {
   const { user } = useUser();
-  const [userData, setUserData] = useState<UserData | null>(null);
-  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
+  const queryClient = useQueryClient();
 
   const fetchUserData = async (clerkId: string): Promise<UserData> => {
-    try {
-      const response = await axios.get(`http://192.168.0.32:3000/user/${clerkId}`);
-      return response.data;
-    } catch (error) {
-      console.error('Error fetching user data:', error);
-      throw error;
-    }
+    const response = await axios.get(`http://192.168.0.32:3000/user/${clerkId}`);
+    return response.data;
   };
 
-  const fetchSavedEvents = useCallback(async () => {
-    if (!user?.id) {
-      console.log('No user ID available');
-      return;
-    }
-    try {
-      console.log(`Fetching saved events for user: ${user.id}`);
-      const response = await axios.get(`http://192.168.0.32:3000/user/${user.id}/events`);
-      console.log('Saved events response:', response.data);
-  
-      if (!Array.isArray(response.data)) {
-        console.error('Expected an array of event IDs, but received:', response.data);
-        setError('Invalid data format for saved events');
-        return;
-      }
-  
-      const events = await Promise.all(response.data.map(async (id: string) => {
-        try {
-          console.log(`Fetching details for event ID: ${id}`);
-          const eventResponse = await axios.get(`http://192.168.0.32:3000/events/${id}`);
-          return eventResponse.data;
-        } catch (eventError) {
-          console.error(`Error fetching event ${id}:`, eventError);
-          return null;  // Return null for failed event fetches
-        }
-      }));
-  
-      const validEvents = events.filter(event => event !== null);
-      console.log(`Successfully fetched ${validEvents.length} out of ${response.data.length} events`);
-      setSavedEvents(validEvents);
-    } catch (err) {
-      console.error('Error fetching saved events:', err);
-      if (axios.isAxiosError(err)) {
-        console.error('Axios error details:', err.response?.data);
-      }
-      setError('Failed to load saved events');
-    }
-  }, [user?.id]);
+  const fetchSavedEvents = async (userId: string): Promise<Event[]> => {
+    const response = await axios.get(`http://192.168.0.32:3000/user/${userId}/events`);
+    const eventIds = response.data;
+    const events = await Promise.all(eventIds.map(async (id: string) => {
+      const eventResponse = await axios.get(`http://192.168.0.32:3000/events/${id}`);
+      return eventResponse.data;
+    }));
+    return events.filter(event => event !== null);
+  };
 
-  const loadData = useCallback(async () => {
-    if (user?.id) {
-      try {
-        setLoading(true);
-        const [userDataResponse, savedEventsResponse] = await Promise.all([
-          fetchUserData(user.id),
-          fetchSavedEvents()
-        ]);
-        setUserData(userDataResponse);
-        setError(null);
-      } catch (err) {
-        setError('Failed to load data');
-      } finally {
-        setLoading(false);
-      }
-    }
-  }, [user?.id, fetchSavedEvents]);
+  const { data: userData, isLoading: userLoading, error: userError } = useQuery<UserData, Error>({
+    queryKey: ['userData', user?.id],
+    queryFn: () => fetchUserData(user?.id!),
+    enabled: !!user?.id,
+  });
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  const { data: savedEvents, isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useQuery<Event[], Error>({
+    queryKey: ['savedEventDetails', user?.id],
+    queryFn: () => fetchSavedEvents(user?.id!),
+    enabled: !!user?.id,
+  });
 
-  const handleRefresh = useCallback(() => {
-    setRefreshing(true);
-    loadData().then(() => setRefreshing(false));
-  }, [loadData]);
+  const unsaveEventMutation = useMutation({
+    mutationFn: (eventId: string) =>
+      axios.delete('http://192.168.0.32:3000/user/events', {
+        data: { userId: user?.id, eventIds: [eventId] },
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['savedEventDetails', user?.id] });
+    },
+  });
 
-  const handleSelectEvent = useCallback(async (eventId: string) => {
-    if (!user?.id) return;
-
-    setSavingEvents(prev => new Set(prev).add(eventId));
-    try {
-      await axios.delete('http://192.168.0.32:3000/user/events', {
-        data: {
-          userId: user.id,
-          eventIds: [eventId]
-        }
-      });
-      setSavedEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
-    } catch (error) {
-      console.error('Error unsaving event:', error);
-    } finally {
-      setSavingEvents(prev => {
-        const newSet = new Set(prev);
-        newSet.delete(eventId);
-        return newSet;
-      });
-    }
-  }, [user?.id]);
+  const handleSelectEvent = useCallback((eventId: string) => {
+    unsaveEventMutation.mutate(eventId);
+  }, [unsaveEventMutation]);
 
   const renderEvent = useCallback(({ item }: { item: Event }) => (
     <EventItem
       key={item._id}
       item={item}
       onSelect={handleSelectEvent}
-      isSelected={true} // Always true for saved events
-      isSaving={savingEvents.has(item._id)}
+      isSelected={true}
+      isSaving={unsaveEventMutation.isPending}
     />
-  ), [handleSelectEvent, savingEvents]);
+  ), [handleSelectEvent, unsaveEventMutation.isPending]);
 
-  if (loading) {
+  if (userLoading || eventsLoading) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" color="#0000ff" />
@@ -151,10 +89,10 @@ const Profile = () => {
     );
   }
 
-  if (error) {
+  if (userError || eventsError) {
     return (
       <View style={styles.container}>
-        <Text style={styles.errorText}>{error}</Text>
+        <Text style={styles.errorText}>{userError?.message || eventsError?.message}</Text>
       </View>
     );
   }
@@ -163,16 +101,20 @@ const Profile = () => {
     <ScrollView
       style={styles.container}
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        <RefreshControl 
+          refreshing={userLoading || eventsLoading} 
+          onRefresh={() => {
+            queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
+            queryClient.invalidateQueries({ queryKey: ['savedEventDetails', user?.id] });
+          }} 
+        />
       }
     >
       <Text style={styles.title}>User Profile</Text>
       
-      {/* Display email from Clerk */}
       <Text style={styles.label}>Email:</Text>
       <Text style={styles.value}>{user?.emailAddresses[0].emailAddress}</Text>
       
-      {/* Display data from our database if it exists */}
       {userData && (
         <>
           <Text style={styles.label}>First Name:</Text>
@@ -214,8 +156,9 @@ const Profile = () => {
       )}
 
       <Text style={styles.sectionTitle}>Saved Events</Text>
-      {savedEvents.length > 0 ? (
-        <FlatList style={styles.eventsList}
+      {savedEvents && savedEvents.length > 0 ? (
+        <FlatList
+          style={styles.eventsList}
           data={savedEvents}
           renderItem={renderEvent}
           keyExtractor={(item) => item._id}
@@ -234,7 +177,7 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: '#f5f5f5',
   },
-  eventsList : {
+  eventsList: {
     marginBottom: 120,
   },
   title: {

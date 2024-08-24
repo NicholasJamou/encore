@@ -6,12 +6,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import 'react-native-reanimated';
 import * as SecureStore from 'expo-secure-store'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import React from 'react';
 import { useColorScheme } from 'react-native';
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
+const queryClient = new QueryClient();
 
 const tokenCache = {
   async getToken(key: string) {
@@ -59,6 +61,7 @@ export default function RootLayout() {
   }
 
   return (
+    <QueryClientProvider client={queryClient}>
     <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
       <ClerkProvider tokenCache = {tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
@@ -69,5 +72,6 @@ export default function RootLayout() {
       </ClerkLoaded>
     </ClerkProvider>
     </ThemeProvider>
+    </QueryClientProvider>
   );
 }
