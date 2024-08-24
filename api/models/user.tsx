@@ -8,6 +8,7 @@ interface IUser extends Document {
   email: string;
   password: string;
   phoneNumber: string;
+  savedEvents: string[];
   gender?: 'male' | 'female' | 'other';
   verified: boolean;
   dateOfBirth: Date;
@@ -46,6 +47,10 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
     type: String,
     required: true,
   },
+  savedEvents: [{
+    type: String,
+    ref: 'Event' // Assuming you have an Event model
+  }],
   gender: {
     type: String,
     enum: ['male', 'female', 'other'],

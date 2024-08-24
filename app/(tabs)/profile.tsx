@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, ScrollView, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { StyleSheet, Text, View, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
+import EventItem from '../../components/EventItem'; // Make sure this path is correct
 
-// Define the structure of our user data
 interface UserData {
   firstName: string;
   lastName: string;
@@ -16,46 +16,133 @@ interface UserData {
   hobbies: string[];
 }
 
-// Function to fetch user data from our backend
-const fetchUserData = async (clerkId: string): Promise<UserData> => {
-  try {
-    const response = await axios.get(`http://192.168.0.32:3000/user/${clerkId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user data:', error);
-    throw error;
-  }
-};
+interface Event {
+  _id: string;
+  City: string;
+  Event: string;
+  date: string;
+  Image_URL: string;
+  Venue: string;
+}
 
 const Profile = () => {
   const { user } = useUser();
-  // State to hold our fetched user data
   const [userData, setUserData] = useState<UserData | null>(null);
-  // State to track if we're loading data
+  const [savedEvents, setSavedEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
-  // State to hold any error messages
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [savingEvents, setSavingEvents] = useState<Set<string>>(new Set());
 
-  // Effect hook to fetch user data when the component mounts or user ID changes
-  useEffect(() => {
-    const loadUserData = async () => {
-      // Only fetch data if we have a user ID
-      if (user?.id) {
-        try {
-          const data = await fetchUserData(user.id);
-          setUserData(data);
-        } catch (err) {
-          setError('Failed to load user data');
-        } finally {
-          setLoading(false);
-        }
+  const fetchUserData = async (clerkId: string): Promise<UserData> => {
+    try {
+      const response = await axios.get(`http://192.168.0.32:3000/user/${clerkId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      throw error;
+    }
+  };
+
+  const fetchSavedEvents = useCallback(async () => {
+    if (!user?.id) {
+      console.log('No user ID available');
+      return;
+    }
+    try {
+      console.log(`Fetching saved events for user: ${user.id}`);
+      const response = await axios.get(`http://192.168.0.32:3000/user/${user.id}/events`);
+      console.log('Saved events response:', response.data);
+  
+      if (!Array.isArray(response.data)) {
+        console.error('Expected an array of event IDs, but received:', response.data);
+        setError('Invalid data format for saved events');
+        return;
       }
-    };
+  
+      const events = await Promise.all(response.data.map(async (id: string) => {
+        try {
+          console.log(`Fetching details for event ID: ${id}`);
+          const eventResponse = await axios.get(`http://192.168.0.32:3000/events/${id}`);
+          return eventResponse.data;
+        } catch (eventError) {
+          console.error(`Error fetching event ${id}:`, eventError);
+          return null;  // Return null for failed event fetches
+        }
+      }));
+  
+      const validEvents = events.filter(event => event !== null);
+      console.log(`Successfully fetched ${validEvents.length} out of ${response.data.length} events`);
+      setSavedEvents(validEvents);
+    } catch (err) {
+      console.error('Error fetching saved events:', err);
+      if (axios.isAxiosError(err)) {
+        console.error('Axios error details:', err.response?.data);
+      }
+      setError('Failed to load saved events');
+    }
+  }, [user?.id]);
 
-    loadUserData();
-  }, [user?.id]); // This effect runs when user.id changes
+  const loadData = useCallback(async () => {
+    if (user?.id) {
+      try {
+        setLoading(true);
+        const [userDataResponse, savedEventsResponse] = await Promise.all([
+          fetchUserData(user.id),
+          fetchSavedEvents()
+        ]);
+        setUserData(userDataResponse);
+        setError(null);
+      } catch (err) {
+        setError('Failed to load data');
+      } finally {
+        setLoading(false);
+      }
+    }
+  }, [user?.id, fetchSavedEvents]);
 
-  // Show loading spinner while data is being fetched
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadData().then(() => setRefreshing(false));
+  }, [loadData]);
+
+  const handleSelectEvent = useCallback(async (eventId: string) => {
+    if (!user?.id) return;
+
+    setSavingEvents(prev => new Set(prev).add(eventId));
+    try {
+      await axios.delete('http://192.168.0.32:3000/user/events', {
+        data: {
+          userId: user.id,
+          eventIds: [eventId]
+        }
+      });
+      setSavedEvents(prevEvents => prevEvents.filter(event => event._id !== eventId));
+    } catch (error) {
+      console.error('Error unsaving event:', error);
+    } finally {
+      setSavingEvents(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(eventId);
+        return newSet;
+      });
+    }
+  }, [user?.id]);
+
+  const renderEvent = useCallback(({ item }: { item: Event }) => (
+    <EventItem
+      key={item._id}
+      item={item}
+      onSelect={handleSelectEvent}
+      isSelected={true} // Always true for saved events
+      isSaving={savingEvents.has(item._id)}
+    />
+  ), [handleSelectEvent, savingEvents]);
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -64,7 +151,6 @@ const Profile = () => {
     );
   }
 
-  // Show error message if data fetch failed
   if (error) {
     return (
       <View style={styles.container}>
@@ -73,9 +159,15 @@ const Profile = () => {
     );
   }
 
-  // Render the user profile
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView
+      style={styles.container}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+      }
+    >
+      <Text style={styles.title}>User Profile</Text>
+      
       {/* Display email from Clerk */}
       <Text style={styles.label}>Email:</Text>
       <Text style={styles.value}>{user?.emailAddresses[0].emailAddress}</Text>
@@ -95,7 +187,6 @@ const Profile = () => {
           <Text style={styles.label}>Date of Birth:</Text>
           <Text style={styles.value}>{new Date(userData.dateOfBirth).toLocaleDateString()}</Text>
           
-          {/* Only show gender if it exists */}
           {userData.gender && (
             <>
               <Text style={styles.label}>Gender:</Text>
@@ -106,7 +197,6 @@ const Profile = () => {
           <Text style={styles.label}>Verified:</Text>
           <Text style={styles.value}>{userData.verified ? 'Yes' : 'No'}</Text>
           
-          {/* Only show bio if it exists */}
           {userData.bio && (
             <>
               <Text style={styles.label}>Bio:</Text>
@@ -114,7 +204,6 @@ const Profile = () => {
             </>
           )}
           
-          {/* Only show hobbies if they exist */}
           {userData.hobbies.length > 0 && (
             <>
               <Text style={styles.label}>Hobbies:</Text>
@@ -123,16 +212,30 @@ const Profile = () => {
           )}
         </>
       )}
+
+      <Text style={styles.sectionTitle}>Saved Events</Text>
+      {savedEvents.length > 0 ? (
+        <FlatList style={styles.eventsList}
+          data={savedEvents}
+          renderItem={renderEvent}
+          keyExtractor={(item) => item._id}
+          scrollEnabled={false}
+        />
+      ) : (
+        <Text style={styles.emptyText}>No saved events found</Text>
+      )}
     </ScrollView>
   );
 };
 
-// Styles for our component
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
     backgroundColor: '#f5f5f5',
+  },
+  eventsList : {
+    marginBottom: 120,
   },
   title: {
     fontSize: 24,
@@ -151,6 +254,18 @@ const styles = StyleSheet.create({
   errorText: {
     color: 'red',
     fontSize: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  emptyText: {
+    textAlign: 'center',
+    marginTop: 20,
+    fontSize: 16,
+    color: '#666',
   },
 });
 
