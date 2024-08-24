@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import { StyleSheet, Text, View, FlatList, Image, ActivityIndicator, RefreshControl, TextInput, TouchableOpacity, Modal, Button } from 'react-native';
 import debounce from 'lodash/debounce';
 import { useAuth } from '@clerk/clerk-expo';
+import EventItem from '../../components/EventItem'; 
 
 // Define the structure of an Event object
 interface Event {
@@ -21,32 +22,6 @@ interface PaginationInfo {
   hasNextPage: boolean;
   hasPrevPage: boolean;
 }
-
-// EventItem component: Renders a single event item
-// memo is used for performance optimization, preventing unnecessary re-renders
-const EventItem = memo(({ item, onSelect, isSelected, isSaving }: { 
-  item: Event; 
-  onSelect: (id: string) => void; 
-  isSelected: boolean; 
-  isSaving: boolean 
-}) => (
-  <TouchableOpacity onPress={() => onSelect(item._id)} style={styles.eventItem} disabled={isSaving}>
-    <Image source={{ uri: item.Image_URL }} style={styles.eventImage} />
-    <View style={styles.eventDetails}>
-      <Text style={styles.eventName}>{item.Event}</Text>
-      <Text style={styles.eventInfo}>{item.date}</Text>
-      <Text style={styles.eventInfo}>{item.Venue}</Text>
-      <Text style={styles.eventInfo}>{item.City}</Text>
-    </View>
-    <View style={styles.checkboxContainer}>
-      {isSaving ? (
-        <ActivityIndicator size="small" color="#0000ff" />
-      ) : (
-        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
-      )}
-    </View>
-  </TouchableOpacity>
-));
 
 // Main EventsScreen component
 const EventsScreen = () => {

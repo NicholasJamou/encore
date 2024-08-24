@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { StyleSheet, Text, View, ScrollView, ActivityIndicator, FlatList, RefreshControl } from 'react-native';
 import { useUser } from '@clerk/clerk-expo';
 import axios from 'axios';
-import EventItem from '../../components/EventItem'; // Make sure this path is correct
+import EventItem from '../../components/EventItem'; 
 
 interface UserData {
   firstName: string;

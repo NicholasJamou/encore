@@ -22,7 +22,7 @@ const EventItem = memo(({ item, onSelect, isSelected, isSaving }: EventItemProps
     <Image source={{ uri: item.Image_URL }} style={styles.eventImage} />
     <View style={styles.eventDetails}>
       <Text style={styles.eventName}>{item.Event}</Text>
-      <Text style={styles.eventInfo}>{new Date(item.date).toLocaleDateString()}</Text>
+      <Text style={styles.eventInfo}>{item.date}</Text>
       <Text style={styles.eventInfo}>{item.Venue}</Text>
       <Text style={styles.eventInfo}>{item.City}</Text>
     </View>
