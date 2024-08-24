@@ -83,7 +83,15 @@ const EventsScreen = () => {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate and refetch queries
       queryClient.invalidateQueries({ queryKey: ['savedEventIds', userId] });
+      queryClient.invalidateQueries({ queryKey: ['savedEventDetails', userId] });
+      
+      // Optionally, you can show a success message here
+    },
+    onError: (error) => {
+      // Handle error (e.g., show an error message)
+      console.error('Failed to save event:', error);
     },
   });
 

@@ -55,6 +55,10 @@ const Profile = () => {
     queryKey: ['savedEventDetails', user?.id],
     queryFn: () => fetchSavedEvents(user?.id!),
     enabled: !!user?.id,
+    // Add this option to refetch on window focus
+    refetchOnWindowFocus: true,
+    // Add this option to refetch if the query is stale
+    staleTime: 0,
   });
 
   const unsaveEventMutation = useMutation({
