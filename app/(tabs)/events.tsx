@@ -5,6 +5,7 @@ import debounce from 'lodash/debounce';
 import { useAuth } from '@clerk/clerk-expo';
 import EventItem from '../../components/EventItem';
 
+// Define the structure of an Event object
 interface Event {
   _id: string;
   City: string;
@@ -14,6 +15,7 @@ interface Event {
   Venue: string;
 }
 
+// Define the structure of pagination information
 interface PaginationInfo {
   currentPage: number;
   totalPages: number;
@@ -22,19 +24,28 @@ interface PaginationInfo {
   hasPrevPage: boolean;
 }
 
+// Define the structure of the API response for events
 interface EventsResponse {
   events: Event[];
   pagination: PaginationInfo;
 }
 
 const EventsScreen = () => {
+  // State for managing search query
   const [searchQuery, setSearchQuery] = useState('');
+  // State for managing city filter
   const [cityFilter, setCityFilter] = useState('');
+  // State for controlling the visibility of the city filter modal
   const [showCityFilter, setShowCityFilter] = useState(false);
+  
+  // Get the user ID from Clerk authentication
   const { userId } = useAuth();
+  // Get the query client instance for managing React Query cache
   const queryClient = useQueryClient();
 
+  // Function to fetch events from the API
   const fetchEvents = async ({ pageParam = 1 }) => {
+    // Construct query parameters for the API request
     const queryParams = new URLSearchParams({
       page: pageParam.toString(),
       limit: '20',
@@ -49,6 +60,7 @@ const EventsScreen = () => {
     return response.json() as Promise<EventsResponse>;
   };
 
+  // Use React Query's useInfiniteQuery to fetch and manage paginated events data
   const eventsQuery = useInfiniteQuery({
     queryKey: ['events', searchQuery, cityFilter],
     queryFn: fetchEvents,
@@ -57,6 +69,7 @@ const EventsScreen = () => {
       lastPage.pagination.hasNextPage ? lastPage.pagination.currentPage + 1 : undefined,
   });
 
+  // Function to fetch saved events for the current user
   const fetchSavedEvents = async () => {
     if (!userId) throw new Error('User not authenticated');
     const response = await fetch(`http://192.168.0.32:3000/user/${userId}/events`);
@@ -66,12 +79,14 @@ const EventsScreen = () => {
     return response.json();
   };
 
+  // Use React Query's useQuery to fetch and manage saved events data
   const savedEventsQuery = useQuery({
     queryKey: ['savedEventIds', userId],
     queryFn: fetchSavedEvents,
     enabled: !!userId,
   });
 
+  // Mutation for saving an event
   const saveEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
       const response = await fetch('http://192.168.0.32:3000/user/events', {
@@ -83,7 +98,7 @@ const EventsScreen = () => {
       return response.json();
     },
     onSuccess: () => {
-      // Invalidate and refetch queries
+      // Invalidate and refetch queries to update the UI
       queryClient.invalidateQueries({ queryKey: ['savedEventIds', userId] });
       queryClient.invalidateQueries({ queryKey: ['savedEventDetails', userId] });
       
@@ -95,6 +110,7 @@ const EventsScreen = () => {
     },
   });
 
+  // Mutation for removing a saved event
   const removeEventMutation = useMutation({
     mutationFn: async (eventId: string) => {
       const response = await fetch('http://192.168.0.32:3000/user/events', {
@@ -110,8 +126,7 @@ const EventsScreen = () => {
     },
   });
 
-
-
+  // Debounce the search input to avoid too frequent API calls
   const debouncedSearch = useMemo(
     () => debounce((search: string) => {
       setSearchQuery(search);
@@ -119,11 +134,13 @@ const EventsScreen = () => {
     []
   );
 
+  // Handle city filter selection
   const handleCityFilter = useCallback((city: string) => {
     setCityFilter(city);
     setShowCityFilter(false);
   }, []);
 
+  // Handle event selection (save/unsave)
   const handleSelectEvent = useCallback((eventId: string) => {
     const savedEventIds = new Set(savedEventsQuery.data);
     if (savedEventIds.has(eventId)) {
@@ -133,6 +150,7 @@ const EventsScreen = () => {
     }
   }, [savedEventsQuery.data, removeEventMutation, saveEventMutation]);
 
+  // Render individual event item
   const renderEvent = useCallback(({ item }: { item: Event }) => {
     const savedEventIds = new Set(savedEventsQuery.data);
     const isSelected = savedEventIds.has(item._id);
@@ -147,19 +165,23 @@ const EventsScreen = () => {
     );
   }, [savedEventsQuery.data, saveEventMutation.isPending, removeEventMutation.isPending, handleSelectEvent]);
 
+  // Key extractor for FlatList
   const keyExtractor = useCallback((item: Event) => item._id, []);
 
+  // Handle loading more events when reaching the end of the list
   const handleLoadMore = useCallback(() => {
     if (eventsQuery.hasNextPage) {
       eventsQuery.fetchNextPage();
     }
   }, [eventsQuery]);
 
+  // Handle refresh action
   const handleRefresh = useCallback(() => {
     eventsQuery.refetch();
     savedEventsQuery.refetch();
   }, [eventsQuery, savedEventsQuery]);
 
+  // Render the main content of the screen
   const renderContent = () => {
     if (eventsQuery.isLoading) {
       return <Text>Loading events...</Text>;
@@ -169,6 +191,7 @@ const EventsScreen = () => {
       return <Text>Error: {eventsQuery.error.message}</Text>;
     }
 
+    // Flatten all pages of events into a single array and add a unique ID
     const allEvents = eventsQuery.data?.pages.flatMap((page, pageIndex) => 
       page.events.map(event => ({
         ...event,
@@ -197,8 +220,10 @@ const EventsScreen = () => {
     );
   };
 
+  // Main component render
   return (
     <View style={styles.container}>
+      {/* Search bar and filter button */}
       <View style={styles.searchContainer}>
         <TextInput
           style={styles.searchInput}
@@ -209,6 +234,8 @@ const EventsScreen = () => {
           <Text>Filter</Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Display active city filter if set */}
       {cityFilter && (
         <View style={styles.activeFilterContainer}>
           <Text>Filtered by: {cityFilter}</Text>
@@ -217,7 +244,11 @@ const EventsScreen = () => {
           </TouchableOpacity>
         </View>
       )}
-            {renderContent()}
+      
+      {/* Render main content (event list or loading/error states) */}
+      {renderContent()}
+      
+      {/* City filter modal */}
       <Modal
         visible={showCityFilter}
         transparent={true}

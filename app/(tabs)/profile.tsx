@@ -5,6 +5,7 @@ import axios from 'axios';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import EventItem from '../../components/EventItem';
 
+// Define the structure of user data
 interface UserData {
   firstName: string;
   lastName: string;
@@ -17,6 +18,7 @@ interface UserData {
   hobbies: string[];
 }
 
+// Define the structure of an Event object
 interface Event {
   _id: string;
   City: string;
@@ -27,54 +29,65 @@ interface Event {
 }
 
 const Profile = () => {
+  // Get the current user from Clerk authentication
   const { user } = useUser();
+  // Get the query client instance for managing React Query cache
   const queryClient = useQueryClient();
 
+  // Function to fetch user data from the API
   const fetchUserData = async (clerkId: string): Promise<UserData> => {
     const response = await axios.get(`http://192.168.0.32:3000/user/${clerkId}`);
     return response.data;
   };
 
+  // Function to fetch saved events for the user
   const fetchSavedEvents = async (userId: string): Promise<Event[]> => {
+    // First, fetch the list of saved event IDs
     const response = await axios.get(`http://192.168.0.32:3000/user/${userId}/events`);
     const eventIds = response.data;
+    // Then, fetch the details for each event ID
     const events = await Promise.all(eventIds.map(async (id: string) => {
       const eventResponse = await axios.get(`http://192.168.0.32:3000/events/${id}`);
       return eventResponse.data;
     }));
+    // Filter out any null responses (in case an event was not found)
     return events.filter(event => event !== null);
   };
 
+  // Use React Query to fetch and manage user data
   const { data: userData, isLoading: userLoading, error: userError } = useQuery<UserData, Error>({
     queryKey: ['userData', user?.id],
     queryFn: () => fetchUserData(user?.id!),
-    enabled: !!user?.id,
+    enabled: !!user?.id, // Only run the query if we have a user ID
   });
 
+  // Use React Query to fetch and manage saved events data
   const { data: savedEvents, isLoading: eventsLoading, error: eventsError, refetch: refetchEvents } = useQuery<Event[], Error>({
     queryKey: ['savedEventDetails', user?.id],
     queryFn: () => fetchSavedEvents(user?.id!),
-    enabled: !!user?.id,
-    // Add this option to refetch on window focus
-    refetchOnWindowFocus: true,
-    // Add this option to refetch if the query is stale
-    staleTime: 0,
+    enabled: !!user?.id, // Only run the query if we have a user ID
+    refetchOnWindowFocus: true, // Refetch when the window regains focus
+    staleTime: 0, // Consider the data stale immediately (always refetch when possible)
   });
 
+  // Mutation for removing a saved event
   const unsaveEventMutation = useMutation({
     mutationFn: (eventId: string) =>
       axios.delete('http://192.168.0.32:3000/user/events', {
         data: { userId: user?.id, eventIds: [eventId] },
       }),
     onSuccess: () => {
+      // Invalidate and refetch the saved events query when an event is unsaved
       queryClient.invalidateQueries({ queryKey: ['savedEventDetails', user?.id] });
     },
   });
 
+  // Handle the selection (unsaving) of an event
   const handleSelectEvent = useCallback((eventId: string) => {
     unsaveEventMutation.mutate(eventId);
   }, [unsaveEventMutation]);
 
+  // Render an individual event item
   const renderEvent = useCallback(({ item }: { item: Event }) => (
     <EventItem
       key={item._id}
@@ -85,6 +98,7 @@ const Profile = () => {
     />
   ), [handleSelectEvent, unsaveEventMutation.isPending]);
 
+  // Show loading indicator while data is being fetched
   if (userLoading || eventsLoading) {
     return (
       <View style={styles.container}>
@@ -93,6 +107,7 @@ const Profile = () => {
     );
   }
 
+  // Show error message if there's an error fetching data
   if (userError || eventsError) {
     return (
       <View style={styles.container}>
@@ -101,6 +116,7 @@ const Profile = () => {
     );
   }
 
+  // Render the main profile content
   return (
     <ScrollView
       style={styles.container}
@@ -108,6 +124,7 @@ const Profile = () => {
         <RefreshControl 
           refreshing={userLoading || eventsLoading} 
           onRefresh={() => {
+            // Manually trigger a refetch of user data and saved events
             queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
             queryClient.invalidateQueries({ queryKey: ['savedEventDetails', user?.id] });
           }} 
@@ -116,9 +133,11 @@ const Profile = () => {
     >
       <Text style={styles.title}>User Profile</Text>
       
+      {/* Display user's email */}
       <Text style={styles.label}>Email:</Text>
       <Text style={styles.value}>{user?.emailAddresses[0].emailAddress}</Text>
       
+      {/* Display user data if available */}
       {userData && (
         <>
           <Text style={styles.label}>First Name:</Text>
@@ -133,6 +152,7 @@ const Profile = () => {
           <Text style={styles.label}>Date of Birth:</Text>
           <Text style={styles.value}>{new Date(userData.dateOfBirth).toLocaleDateString()}</Text>
           
+          {/* Display gender if available */}
           {userData.gender && (
             <>
               <Text style={styles.label}>Gender:</Text>
@@ -143,6 +163,7 @@ const Profile = () => {
           <Text style={styles.label}>Verified:</Text>
           <Text style={styles.value}>{userData.verified ? 'Yes' : 'No'}</Text>
           
+          {/* Display bio if available */}
           {userData.bio && (
             <>
               <Text style={styles.label}>Bio:</Text>
@@ -150,6 +171,7 @@ const Profile = () => {
             </>
           )}
           
+          {/* Display hobbies if available */}
           {userData.hobbies.length > 0 && (
             <>
               <Text style={styles.label}>Hobbies:</Text>
@@ -159,6 +181,7 @@ const Profile = () => {
         </>
       )}
 
+      {/* Saved Events section */}
       <Text style={styles.sectionTitle}>Saved Events</Text>
       {savedEvents && savedEvents.length > 0 ? (
         <FlatList
@@ -166,7 +189,7 @@ const Profile = () => {
           data={savedEvents}
           renderItem={renderEvent}
           keyExtractor={(item) => item._id}
-          scrollEnabled={false}
+          scrollEnabled={false} // Disable scrolling as it's inside a ScrollView
         />
       ) : (
         <Text style={styles.emptyText}>No saved events found</Text>
@@ -175,6 +198,7 @@ const Profile = () => {
   );
 };
 
+// Styles for the component
 const styles = StyleSheet.create({
   container: {
     flex: 1,
