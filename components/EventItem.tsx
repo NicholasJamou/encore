@@ -1,40 +1,31 @@
-import React, { memo } from 'react';
-import { StyleSheet, Text, View, Image, TouchableOpacity, ActivityIndicator } from 'react-native';
-
-interface Event {
-  _id: string;
-  City: string;
-  Event: string;
-  date: string;
-  Image_URL: string;
-  Venue: string;
-}
+import React from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { Event } from '../types/types';
 
 interface EventItemProps {
   item: Event;
-  onSelect: (id: string) => void;
+  onSelect: (eventId: string) => void;
   isSelected: boolean;
   isSaving: boolean;
 }
 
-const EventItem = memo(({ item, onSelect, isSelected, isSaving }: EventItemProps) => (
-  <TouchableOpacity onPress={() => onSelect(item._id)} style={styles.eventItem} disabled={isSaving}>
-    <Image source={{ uri: item.Image_URL }} style={styles.eventImage} />
-    <View style={styles.eventDetails}>
-      <Text style={styles.eventName}>{item.Event}</Text>
-      <Text style={styles.eventInfo}>{item.date}</Text>
-      <Text style={styles.eventInfo}>{item.Venue}</Text>
-      <Text style={styles.eventInfo}>{item.City}</Text>
-    </View>
-    <View style={styles.checkboxContainer}>
-      {isSaving ? (
-        <ActivityIndicator size="small" color="#0000ff" />
-      ) : (
-        <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
-      )}
-    </View>
-  </TouchableOpacity>
-));
+const EventItem: React.FC<EventItemProps> = ({ item, onSelect, isSelected, isSaving }) => {
+  return (
+    <TouchableOpacity onPress={() => onSelect(item._id)} disabled={isSaving}>
+      <View style={styles.eventItem}>
+        <Image source={{ uri: item.Image_URL }} style={styles.eventImage} />
+        <View style={styles.eventDetails}>
+          <Text style={styles.eventName}>{item.Event}</Text>
+          <Text style={styles.eventInfo}>{item.City} - {item.Venue}</Text>
+          <Text style={styles.eventInfo}>{item.date}</Text>
+        </View>
+        <View style={styles.checkboxContainer}>
+          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+};
 
 const styles = StyleSheet.create({
   eventItem: {
