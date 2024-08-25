@@ -8983,6 +8983,11 @@ react-native-helmet-async@2.0.4:
     react-fast-compare "^3.2.2"
     shallowequal "^1.1.0"
 
+react-native-otp-entry@^1.7.1:
+  version "1.7.1"
+  resolved "https://registry.yarnpkg.com/react-native-otp-entry/-/react-native-otp-entry-1.7.1.tgz#926c8f4e8ffeb48290bd8a1d07e986f5b63cf204"
+  integrity sha512-ZZErm8R0eww0lQu/D2KZuMbio4k3bBfijS8sgBvlsDTyREOH6edZZ4ingtLR1sqvKpoylhunR2NbcWLrV/ekBA==
+
 react-native-reanimated@~3.10.1:
   version "3.10.1"
   resolved "https://registry.npmjs.org/react-native-reanimated/-/react-native-reanimated-3.10.1.tgz"
