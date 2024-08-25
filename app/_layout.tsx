@@ -7,6 +7,8 @@ import { useEffect } from 'react';
 import 'react-native-reanimated';
 import * as SecureStore from 'expo-secure-store'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { createTamagui, TamaguiProvider, View } from 'tamagui'
+import defaultConfig from '@tamagui/config/v3'
 
 import React from 'react';
 import { useColorScheme } from 'react-native';
@@ -14,6 +16,7 @@ import { useColorScheme } from 'react-native';
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 const queryClient = new QueryClient();
+const config = createTamagui(defaultConfig);
 
 const tokenCache = {
   async getToken(key: string) {
@@ -61,6 +64,7 @@ export default function RootLayout() {
   }
 
   return (
+    <TamaguiProvider config={config}>
     <QueryClientProvider client={queryClient}>
     <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
       <ClerkProvider tokenCache = {tokenCache} publishableKey={publishableKey}>
@@ -73,5 +77,6 @@ export default function RootLayout() {
     </ClerkProvider>
     </ThemeProvider>
     </QueryClientProvider>
+    </TamaguiProvider>
   );
 }

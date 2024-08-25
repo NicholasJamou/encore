@@ -8,6 +8,9 @@ import {
   Alert,
   View,
   Platform,
+  ScrollView,
+  TouchableWithoutFeedback,
+  Keyboard,
 } from "react-native";
 import { MaterialIcons, Ionicons, AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
 import { useSignUp } from '@clerk/clerk-expo';
@@ -150,10 +153,16 @@ const Register: React.FC = () => {
 };
 
   return (
-    <View style={styles.container}>
-      {!pendingVerification ? (
-        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.form}>
-          <Text style={styles.title}>Register for Jivee</Text>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <KeyboardAvoidingView 
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={{ flex: 1, width: '100%' }}
+        >
+          <ScrollView contentContainerStyle={styles.scrollViewContent}>
+            {!pendingVerification ? (
+              <View style={styles.form}>
+                <Text style={styles.title}>Register for Jivee</Text>
           
           <View style={styles.inputContainer}>
             <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
@@ -235,7 +244,7 @@ const Register: React.FC = () => {
           <Pressable onPress={() => router.replace("/login")} style={styles.linkButton}>
             <Text style={styles.linkButtonText}>Already have an account? Sign In</Text>
           </Pressable>
-        </KeyboardAvoidingView>
+          </View>
       ) : (
         <View style={styles.verificationContainer}>
           <Text style={styles.verificationText}>
@@ -253,8 +262,11 @@ const Register: React.FC = () => {
           </Pressable>
         </View>
       )}
-    </View>
-  );
+      </ScrollView>
+    </KeyboardAvoidingView>
+  </View>
+</TouchableWithoutFeedback>
+);
 };
 
 const styles = StyleSheet.create({
@@ -287,6 +299,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 40,
     fontSize: 16,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   button: {
     backgroundColor: "#000000",
