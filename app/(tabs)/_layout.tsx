@@ -1,35 +1,77 @@
 import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { TabBarIcon } from '../../components/navigation/TabBarIcon';
-import { Colors } from '../../constants/Colors';
+import React, { useRef, useEffect } from 'react';
 import { useColorScheme } from '../../hooks/useColorScheme';
-import { Image, ImageSourcePropType, View } from "react-native";
-import { SignedIn } from '@clerk/clerk-expo'
+import { Image, ImageSourcePropType, View, Animated, Easing } from "react-native";
 import { icons } from "@/constants";
+import { useNavigation } from '@react-navigation/native';
+
+const AnimatedImage = Animated.createAnimatedComponent(Image);
 
 const TabIcon = ({
   source,
   focused,
+  routeName,
 }: {
   source: ImageSourcePropType;
   focused: boolean;
-}) => (
-  <View
-    className={`flex flex-row justify-center items-center rounded-full ${focused ? "bg-teal-400" : ""}`}
-  >
-    <View
-      className={`rounded-full w-12 h-12 items-center justify-center ${focused ? "bg-teal-400" : ""}`}
-    >
-      <Image
-        source={source}
-        tintColor="white"
-        resizeMode="contain"
-        className="w-7 h-7"
-      />
+  routeName: string;
+}) => {
+  const scaleAnim = useRef(new Animated.Value(1)).current;
+  const navigation = useNavigation();
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('state', (e) => {
+      const currentRoute = e.data.state.routes[e.data.state.index];
+      if (currentRoute.name === routeName) {
+        Animated.sequence([
+          Animated.timing(scaleAnim, {
+            toValue: 1.1,
+            duration: 100,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          }),
+          Animated.timing(scaleAnim, {
+            toValue: 1,
+            duration: 100,
+            easing: Easing.linear,
+            useNativeDriver: true,
+          })
+        ]).start();
+      } else {
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 100,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }).start();
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, routeName]);
+
+  return (
+    <View className="flex-1 items-center justify-center">
+      <View
+        className={`flex flex-row justify-center items-center rounded-full ${focused ? "bg-teal-400" : ""}`}
+      >
+        <Animated.View
+          className={`rounded-full w-12 h-12 items-center justify-center ${focused ? "bg-teal-400" : ""}`}
+          style={{
+            transform: [{ scale: scaleAnim }],
+          }}
+        >
+          <AnimatedImage
+            source={source}
+            tintColor="white"
+            resizeMode="contain"
+            className="w-7 h-7"
+          />
+        </Animated.View>
+      </View>
     </View>
-  </View>
-);
+  );
+};
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -58,12 +100,22 @@ export default function TabLayout() {
       }}
     >
       <Tabs.Screen
+        name="friendFeed"
+        options={{
+          title: "Feed",
+          headerShown: true,
+          tabBarIcon: ({ focused }) => (
+            <TabIcon source={icons.search} focused={focused} routeName="friendFeed" />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="events"
         options={{
           title: 'Events',
           headerShown: true,
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={icons.calendar} focused={focused} />
+            <TabIcon source={icons.calendar} focused={focused} routeName="events" />
           ),
         }}
       />
@@ -73,7 +125,7 @@ export default function TabLayout() {
           title: 'Chat',
           headerShown: true,
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={icons.chat} focused={focused} />
+            <TabIcon source={icons.chat} focused={focused} routeName="chat" />
           ),
         }}
       />
@@ -83,7 +135,7 @@ export default function TabLayout() {
           title: "Profile",
           headerShown: true,
           tabBarIcon: ({ focused }) => (
-            <TabIcon source={icons.profile} focused={focused} />
+            <TabIcon source={icons.profile} focused={focused} routeName="profile" />
           ),
         }}
       />

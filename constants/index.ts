@@ -32,6 +32,7 @@ import onboarding2 from "@/assets/images/onboarding2.png";
 import onboarding3 from "@/assets/images/onboarding3.png";
 import signUpCar from "@/assets/images/signup-car.png";
 import calendar from "@/assets/icons/calendar.png";
+import logo from "@/assets/images/logo.png";
 
 export const images = {
   onboarding1,
@@ -47,6 +48,7 @@ export const images = {
 export const icons = {
   arrowDown,
   arrowUp,
+  logo,
   backArrow,
   calendar,
   chat,

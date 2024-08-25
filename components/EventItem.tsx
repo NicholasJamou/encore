@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
 import { Event } from '../types/types';
 
 interface EventItemProps {
@@ -20,7 +20,11 @@ const EventItem: React.FC<EventItemProps> = ({ item, onSelect, isSelected, isSav
           <Text style={styles.eventInfo}>{item.date}</Text>
         </View>
         <View style={styles.checkboxContainer}>
-          <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
+          {isSaving ? (
+            <ActivityIndicator size="small" color="#000" />
+          ) : (
+            <View style={[styles.checkbox, isSelected && styles.checkboxSelected]} />
+          )}
         </View>
       </View>
     </TouchableOpacity>
@@ -55,6 +59,7 @@ const styles = StyleSheet.create({
   },
   checkboxContainer: {
     justifyContent: 'center',
+    alignItems: 'center',
     width: 24,
     height: 24,
     marginLeft: 10,
