@@ -1,13 +1,13 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useSignIn } from '@clerk/clerk-expo';
 import { Link, useRouter } from 'expo-router';
-import { TamaguiProvider, Theme, Input, Button, Text, YStack, XStack, Spinner, AnimatePresence } from 'tamagui';
+import { Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
+import { TamaguiProvider, Theme, Input, Button, Text, YStack, XStack, Spinner, AnimatePresence, Stack } from 'tamagui';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as Google from 'expo-auth-session/providers/google';
 import { AntDesign } from '@expo/vector-icons';
 import { HelloWave } from '@/components/HelloWave';
 import { OtpInput } from "react-native-otp-entry";
-import { Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 
 // Define types for props and state
 type ErrorMessageProps = { message: string };
@@ -27,53 +27,65 @@ const ErrorMessage: React.FC<ErrorMessageProps> = ({ message }) => (
 const AnimatedView: React.FC<AnimatedViewProps> = ({ children, isVisible, ...props }) => (
   <AnimatePresence>
     {isVisible && (
-      <YStack
+      <Stack
         animation="quick"
-        enterStyle={{ opacity: 0, scale: 0.95 }}
-        exitStyle={{ opacity: 0, scale: 0.95 }}
+        enterStyle={{ opacity: 0, scale: 0.95, y: 10 }}
+        exitStyle={{ opacity: 0, scale: 0.95, y: 10 }}
+        y={0}
         opacity={1}
         scale={1}
         {...props}
       >
         {children}
-      </YStack>
+      </Stack>
     )}
   </AnimatePresence>
 );
 
-// Custom Apple Sign In Button
-const AppleSignInButton: React.FC<ButtonProps> = ({ onPress, disabled }) => (
-  <Button
-    onPress={onPress}
+interface AnimatedButtonProps extends ButtonProps {
+  children: React.ReactNode;
+}
+
+const AnimatedButton: React.FC<AnimatedButtonProps> = ({ children, ...props }) => {
+  return (
+    <Button
+      animation="quick"
+      pressStyle={{ scale: 0.97 }}
+      {...props}
+    >
+      {children}
+    </Button>
+  );
+};
+
+// Update other components to use AnimatedButton
+const AppleSignInButton: React.FC<ButtonProps> = (props) => (
+  <AnimatedButton
     width="100%"
-    disabled={disabled}
-    pressStyle={{ scale: 0.97 }}
     backgroundColor="black"
     color="white"
-    icon={<AntDesign name="apple1" size={24} color="white" />}
+    {...props}
   >
-    Sign in with Apple
-  </Button>
+    <AntDesign name="apple1" size={24} color="white" />
+    <Text color="white" marginLeft="$2">Sign in with Apple</Text>
+  </AnimatedButton>
 );
 
-// Custom Google Sign In Button
-const GoogleSignInButton: React.FC<ButtonProps> = ({ onPress, disabled }) => (
-  <Button
-    onPress={onPress}
+const GoogleSignInButton: React.FC<ButtonProps> = (props) => (
+  <AnimatedButton
     width="100%"
-    disabled={disabled}
-    pressStyle={{ scale: 0.97 }}
     backgroundColor="white"
     color="black"
     borderColor="$gray5"
     borderWidth={1}
-    icon={<AntDesign name="google" size={24} color="red" />}
+    {...props}
   >
-    Sign in with Google
-  </Button>
+    <AntDesign name="google" size={24} color="red" />
+    <Text color="black" marginLeft="$2">Sign in with Google</Text>
+  </AnimatedButton>
 );
 
-// Phone input step component
+// Update PhoneStep, EmailStep, and VerificationStep to use AnimatedButton
 const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail, error }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
 
@@ -102,16 +114,15 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         />
       </XStack>
       {error && <ErrorMessage message={error} />}
-      <Button
+      <AnimatedButton
         onPress={() => onContinue('+61' + phoneNumber)}
         width="100%"
-        themeInverse
-        disabled={isLoading}
-        pressStyle={{ scale: 0.97 }}
         backgroundColor="teal"
+        color="white"
+        disabled={isLoading}
       >
-        {isLoading ? <Spinner color="$teal10" /> : "Continue"}
-      </Button>
+        {isLoading ? <Spinner color="white" /> : <Text color="white">Continue</Text>}
+      </AnimatedButton>
       <XStack justifyContent="center" space="$2">
         <Text>Don't have an account?</Text>
         <Link href="/register">
