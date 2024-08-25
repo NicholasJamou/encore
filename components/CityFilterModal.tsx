@@ -1,6 +1,5 @@
 import React from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Modal, Button } from 'react-native';
-import BigList from 'react-native-big-list';
+import { StyleSheet, View, Text, TouchableOpacity, Modal, Button, FlatList, Dimensions } from 'react-native';
 
 interface CityFilterModalProps {
   visible: boolean;
@@ -13,7 +12,11 @@ const CityFilterModal: React.FC<CityFilterModalProps> = ({ visible, onClose, cit
   const renderCityItem = ({ item }: { item: string }) => (
     <TouchableOpacity
       style={styles.cityItem}
-      onPress={() => onSelectCity(item === 'All Cities' ? '' : item)}
+      onPress={() => {
+        console.log('City selected:', item); // Debugging log
+        onSelectCity(item === 'All Cities' ? '' : item);
+        onClose();
+      }}
     >
       <Text>{item}</Text>
     </TouchableOpacity>
@@ -23,15 +26,16 @@ const CityFilterModal: React.FC<CityFilterModalProps> = ({ visible, onClose, cit
     <Modal
       visible={visible}
       transparent={true}
-      animationType="slide"
+      animationType="fade"
     >
       <View style={styles.modalContainer}>
         <View style={styles.modalContent}>
           <Text style={styles.modalTitle}>Filter by City</Text>
-          <BigList
+          <FlatList
             data={cities}
             renderItem={renderCityItem}
-            itemHeight={50}
+            keyExtractor={(item) => item}
+            style={styles.cityList}
           />
           <Button title="Close" onPress={onClose} />
         </View>
@@ -39,6 +43,8 @@ const CityFilterModal: React.FC<CityFilterModalProps> = ({ visible, onClose, cit
     </Modal>
   );
 };
+
+const { height } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   modalContainer: {
@@ -52,15 +58,18 @@ const styles = StyleSheet.create({
     padding: 20,
     borderRadius: 10,
     width: '80%',
-    maxHeight: '80%',
+    maxHeight: height * 0.7,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: 'bold',
     marginBottom: 10,
   },
+  cityList: {
+    maxHeight: height * 0.5,
+  },
   cityItem: {
-    padding: 10,
+    padding: 15,
     borderBottomWidth: 1,
     borderBottomColor: '#ddd',
   },

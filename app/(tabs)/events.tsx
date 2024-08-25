@@ -88,7 +88,7 @@ const EventsScreen: React.FC = () => {
   );
 
   const uniqueCities = useMemo(() => 
-    ['All Cities', ...new Set(allEvents.map(event => event.City))],
+    ['All Cities', 'Melbounre', 'Sydney', 'Brisbane', 'Perth', 'Adelaide', 'Hobart', 'Darwin', 'Canberra'],
     [allEvents]
   );
 
