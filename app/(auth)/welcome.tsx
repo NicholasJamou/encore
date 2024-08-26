@@ -6,6 +6,7 @@ import { onboarding } from "@/constants";
 import { router } from "expo-router";
 import { Video } from 'expo-av';
 import { Button } from 'tamagui';
+import LottieView from "lottie-react-native";
 
 const { height, width } = Dimensions.get('window');
 
@@ -33,12 +34,20 @@ const Onboarding = () => {
             <SafeAreaView style={styles.safeArea}>
                 <View style={styles.content}>
                     <View style={styles.logoContainer}>
-                        <Image
+                        {/* <Image
                             source={require('../../assets/images/logoWhite.png')}
                             style={styles.logo}
                             resizeMode="contain"
-                        />
+                        /> */}
+                        <LottieView
+                            source={require("../../assets/lotte/encore.json")}
+                            style={styles.logo}
+                            autoPlay={true}
+                            loop
+                            />
                         <Text style={styles.appName}>Encore</Text>
+                        {/* <Text style={styles.appSlogan}>From fans to friends</Text> */}
+                        {/* <Text style={styles.appSlogan}>Your backstage pass to new connections</Text> */}
                     </View>
                     <Swiper
                         loop={false}
@@ -60,6 +69,9 @@ const Onboarding = () => {
                         onPress={handleSignUp}
                         style={styles.buttonCreateAccount}
                         backgroundColor="#008080"
+                        pressStyle={styles.buttonCreateAccountPressed}
+                        borderWidth={0}
+                        outlineWidth={0}
                     >
                         Create an account
                     </Button>
@@ -105,7 +117,7 @@ const Onboarding = () => {
             alignItems: 'center',
         },
         logo: {
-            width: width * 0.35,
+            width: width * 0.4,
             height: width * 0.3,
             marginBottom: 5,
         },
@@ -113,6 +125,11 @@ const Onboarding = () => {
             color: 'white',
             fontSize: 30,
             fontWeight: 'bold',
+        },
+        appSlogan: {
+            color: 'white',
+            fontSize: 15,
+            paddingTop: 10,
         },
         slide: {
             flex: 1,
@@ -166,7 +183,11 @@ const Onboarding = () => {
             color: 'white',
             alignSelf: 'center',
             width: '60%',
-            borderRadius: 30, // Add this line to make it round
+            borderRadius: 30,
+            outlineWidth: 0,  // Ensures no outline appears
+        },
+        buttonCreateAccountPressed: {
+            backgroundColor: '#006666', // Darker shade of teal
         },
     });
     

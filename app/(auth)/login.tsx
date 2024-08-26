@@ -91,7 +91,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
 
   return (
     <YStack space="$4" width="100%">
-      <Text fontSize="$10" fontWeight="bold"><HelloWave /> Welcome to Encore, sign in below</Text>
+      <Text fontSize="$10" fontWeight="bold">Welcome to Encore, sign in below</Text>
       <XStack width="100%" alignItems="center">
         <XStack 
           borderWidth={1} 
@@ -119,6 +119,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         width="100%"
         backgroundColor="teal"
         color="white"
+        borderRadius="30"
         disabled={isLoading}
       >
         {isLoading ? <Spinner color="white" /> : <Text color="white">Continue</Text>}
@@ -134,6 +135,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         width="100%"
         variant="outlined"
         pressStyle={{ scale: 0.97 }}
+        borderRadius="30"
       >
         Sign in with Email instead
       </Button>
@@ -163,6 +165,7 @@ const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone
         disabled={isLoading}
         pressStyle={{ scale: 0.97 }}
         backgroundColor="teal"
+        borderRadius="30"
       >
         {isLoading ? <Spinner color="$teal10" /> : "Continue"}
       </Button>
@@ -177,6 +180,7 @@ const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone
         width="100%"
         variant="outlined"
         pressStyle={{ scale: 0.97 }}
+        borderRadius="30"
       >
         Sign in with Phone instead
       </Button>
@@ -475,10 +479,12 @@ const handleVerify = useCallback(async (code: string) => {
                     <AppleSignInButton 
                       onPress={handleAppleSignIn}
                       disabled={isLoading}
+                      borderRadius="30"
                     />
                     <GoogleSignInButton 
                       onPress={handleGoogleSignIn}
                       disabled={isLoading}
+                      borderRadius="30"
                     />
                   </YStack>
                 </AnimatedView>

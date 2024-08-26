@@ -53,6 +53,7 @@
     "expo-video": "^1.2.5",
     "expo-web-browser": "~13.0.3",
     "install": "^0.13.0",
+    "lottie-react-native": "^6.7.2",
     "nativewind": "^2.0.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

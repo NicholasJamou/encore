@@ -78,7 +78,7 @@ export const icons = {
 export const onboarding = [
   {
     id: 1,
-    title: "Find new friends!",
+    title: "Find new friends",
     description:
       "Encore connects you with people who are attending the same music events.",
   },
