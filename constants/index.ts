@@ -78,24 +78,21 @@ export const icons = {
 export const onboarding = [
   {
     id: 1,
-    title: "The perfect ride is just a tap away!",
+    title: "Find new friends!",
     description:
-      "Your journey begins with Ryde. Find your ideal ride effortlessly.",
-    image: images.onboarding1,
+      "Encore connects you with people who are attending the same music events.",
   },
   {
     id: 2,
-    title: "Best car in your hands with Ryde",
+    title: "Connect before the show",
     description:
-      "Discover the convenience of finding your perfect ride with Ryde",
-    image: images.onboarding2,
+      "Match with fellow event-goers and start the party before you even arrive!",
   },
   {
     id: 3,
-    title: "Your ride, your way. Let's go!",
+    title: "Find your next event",
     description:
-      "Enter your destination, sit back, and let us take care of the rest.",
-    image: images.onboarding3,
+      "Browse and join upcoming music events that match your preferences.",
   },
 ];
 

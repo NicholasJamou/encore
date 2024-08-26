@@ -66,12 +66,12 @@ export default function RootLayout() {
   return (
     <TamaguiProvider config={config}>
     <QueryClientProvider client={queryClient}>
-    <ThemeProvider value={colorScheme === 'light' ? DarkTheme : DefaultTheme}>
+    <ThemeProvider value={DefaultTheme}>
       <ClerkProvider tokenCache = {tokenCache} publishableKey={publishableKey}>
       <ClerkLoaded>
       <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: true }} />
-        <Stack.Screen name="+not-found" />
+        <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+        <Stack.Screen name="+not-found"  options={{ headerShown: false }}/>
       </Stack>
       </ClerkLoaded>
     </ClerkProvider>

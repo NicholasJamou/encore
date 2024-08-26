@@ -103,7 +103,7 @@ export default function TabLayout() {
         name="friendFeed"
         options={{
           title: "Feed",
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon source={icons.search} focused={focused} routeName="friendFeed" />
           ),
@@ -113,7 +113,7 @@ export default function TabLayout() {
         name="events"
         options={{
           title: 'Events',
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon source={icons.calendar} focused={focused} routeName="events" />
           ),
@@ -123,7 +123,7 @@ export default function TabLayout() {
         name="chat"
         options={{
           title: 'Chat',
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon source={icons.chat} focused={focused} routeName="chat" />
           ),
@@ -133,7 +133,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: "Profile",
-          headerShown: true,
+          headerShown: false,
           tabBarIcon: ({ focused }) => (
             <TabIcon source={icons.profile} focused={focused} routeName="profile" />
           ),
