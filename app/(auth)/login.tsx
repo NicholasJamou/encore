@@ -1,5 +1,5 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { useSignIn } from '@clerk/clerk-expo';
+import React, { useState, useCallback } from 'react';
+import { useSignIn, SignInResource } from '@clerk/clerk-expo';
 import { Link, useRouter } from 'expo-router';
 import { Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 import { TamaguiProvider, Theme, Input, Button, Text, YStack, XStack, Spinner, AnimatePresence, Stack } from 'tamagui';
@@ -197,7 +197,7 @@ const VerificationStep: React.FC<VerificationStepProps> = ({ identifier, onVerif
       <OtpInput 
         numberOfDigits={6}
         onFilled={(code) => {
-          console.log('Code filled:', code); // Logging
+          console.log('Code filled:', code);
           onVerify(code);
         }}
         focusColor="teal"
@@ -235,121 +235,114 @@ export default function LoginPage() {
   const [error, setError] = useState('');
 
   // Setup Google OAuth
-  const [request, response, promptAsync] = Google.useAuthRequest({
+  const [, , promptAsync] = Google.useAuthRequest({
     expoClientId: 'YOUR_EXPO_CLIENT_ID',
     iosClientId: 'YOUR_IOS_CLIENT_ID',
     androidClientId: 'YOUR_ANDROID_CLIENT_ID',
   });
 
   // Function to get user-friendly error messages
-// Function to get user-friendly error messages
-// Function to get user-friendly error messages
-const getErrorMessage = (err: any): string => {
-  console.error('Error details:', JSON.stringify(err, null, 2));
-  console.error('Error type:', typeof err);
-  console.error('Error keys:', Object.keys(err));
+  const getErrorMessage = (err: any): string => {
+    console.error('Error details:', JSON.stringify(err, null, 2));
 
-  if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
-    const firstError = err.errors[0];
-    switch (firstError.code) {
-      case 'form_code_incorrect':
-        return 'The verification code is incorrect. Please try again.';
-      case 'form_identifier_not_found':
-        return 'No account found with this email or phone number. Please check and try again.';
-      case 'form_param_format_invalid':
-        return 'The email or phone number format is invalid. Please enter a valid email or phone number.';
-      case 'form_password_incorrect':
-        return 'Incorrect password. Please try again.';
-      case 'form_identifier_exists':
-        return 'An account with this email or phone number already exists.';
-      case 'form_code_expired':
-        return 'The verification code has expired. Please request a new one.';
-      case 'rate_limit_exceeded':
-        return 'Too many attempts. Please try again later.';
-      case 'form_param_nil':
-        return 'Please enter a valid email or phone number.';
-      default:
-        return firstError.longMessage || firstError.message || 'An unexpected error occurred. Please try again.';
+    if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
+      const firstError = err.errors[0];
+      switch (firstError.code) {
+        case 'form_code_incorrect':
+          return 'The verification code is incorrect. Please try again.';
+        case 'form_identifier_not_found':
+          return 'No account found with this email or phone number. Please check and try again.';
+        case 'form_param_format_invalid':
+          return 'The email or phone number format is invalid. Please enter a valid email or phone number.';
+        case 'form_password_incorrect':
+          return 'Incorrect password. Please try again.';
+        case 'form_identifier_exists':
+          return 'An account with this email or phone number already exists.';
+        case 'form_code_expired':
+          return 'The verification code has expired. Please request a new one.';
+        case 'rate_limit_exceeded':
+          return 'Too many attempts. Please try again later.';
+        case 'form_param_nil':
+          return 'Please enter a valid email or phone number.';
+        default:
+          return firstError.longMessage || firstError.message || 'An unexpected error occurred. Please try again.';
+      }
     }
-  }
 
-  // Fallback for other types of errors
-  return err.message || 'An unexpected error occurred. Please try again.';
-};
-
+    return err.message || 'An unexpected error occurred. Please try again.';
+  };
 
   // Handle continue button press (for both phone and email)
-  // Update handleContinue and handleVerify to use the improved error handling
-const handleContinue = useCallback(async (identifierInput: string) => {
-  if (!isLoaded) return;
-  setIsLoading(true);
-  setError('');
-  console.log('Attempting to sign in with identifier:', identifierInput);
+  const handleContinue = useCallback(async (identifierInput: string) => {
+    if (!isLoaded) return;
+    setIsLoading(true);
+    setError('');
+    console.log('Attempting to sign in with identifier:', identifierInput);
 
-  try {
-    const { supportedFirstFactors } = await signIn.create({
-      identifier: identifierInput,
-    });
-
-    const firstFactor = supportedFirstFactors.find(
-      (factor: any) => factor.strategy === 'phone_code' || factor.strategy === 'email_code'
-    );
-
-    if (firstFactor) {
-      await signIn.prepareFirstFactor({
-        strategy: firstFactor.strategy,
-        phoneNumberId: firstFactor.phoneNumberId,
-        emailAddressId: firstFactor.emailAddressId,
+    try {
+      const { supportedFirstFactors } = await signIn.create({
+        identifier: identifierInput,
       });
-      setIdentifier(identifierInput);
-      setStep('verification');
-      console.log('Verification step prepared for:', identifierInput);
-    } else {
-      setError('No supported verification method found for this account.');
-      console.log('No supported verification method found for:', identifierInput);
+
+      const firstFactor = supportedFirstFactors.find(
+        (factor: any) => factor.strategy === 'phone_code' || factor.strategy === 'email_code'
+      );
+
+      if (firstFactor) {
+        await signIn.prepareFirstFactor({
+          strategy: firstFactor.strategy,
+          phoneNumberId: firstFactor.phoneNumberId,
+          emailAddressId: firstFactor.emailAddressId,
+        });
+        setIdentifier(identifierInput);
+        setStep('verification');
+        console.log('Verification step prepared for:', identifierInput);
+      } else {
+        setError('No supported verification method found for this account.');
+        console.log('No supported verification method found for:', identifierInput);
+      }
+    } catch (err: any) {
+      console.error('Error in handleContinue:', err);
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err: any) {
-    console.error('Error in handleContinue:', err);
-    setError(getErrorMessage(err));
-  } finally {
-    setIsLoading(false);
-  }
-}, [isLoaded, signIn]);
+  }, [isLoaded, signIn]);
 
-// Update handleVerify to use the improved error handling
-const handleVerify = useCallback(async (code: string) => {
-  if (!isLoaded || isLoading) return;
-  setIsLoading(true);
-  setError('');
-  console.log('Attempting to verify code for:', identifier);
+  // Handle verification
+  const handleVerify = useCallback(async (code: string) => {
+    if (!isLoaded || isLoading) return;
+    setIsLoading(true);
+    setError('');
+    console.log('Attempting to verify code for:', identifier);
 
-  try {
-    const completeSignIn = await signIn.attemptFirstFactor({
-      strategy: identifier.includes('@') ? 'email_code' : 'phone_code',
-      code,
-    });
+    try {
+      const completeSignIn = await signIn.attemptFirstFactor({
+        strategy: identifier.includes('@') ? 'email_code' : 'phone_code',
+        code,
+      });
 
-    if (completeSignIn.status === 'complete') {
-      await setActive({ session: completeSignIn.createdSessionId });
-      console.log('Sign in successful, redirecting to home');
-      router.replace('/');
-    } else {
-      setError('Verification failed. Please try again.');
-      console.log('Verification failed for:', identifier);
+      if (completeSignIn.status === 'complete') {
+        await setActive({ session: completeSignIn.createdSessionId });
+        console.log('Sign in successful, redirecting to home');
+        router.replace('/');
+      } else {
+        setError('Verification failed. Please try again.');
+        console.log('Verification failed for:', identifier);
+      }
+    } catch (err: any) {
+      console.error('Error in handleVerify:', err);
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoading(false);
     }
-  } catch (err: any) {
-    console.error('Error in handleVerify:', err);
-    setError(getErrorMessage(err));
-  } finally {
-    setIsLoading(false);
-  }
-}, [isLoaded, signIn, setActive, router, identifier, isLoading]);
+  }, [isLoaded, signIn, setActive, router, identifier, isLoading]);
 
   // Handle Apple Sign In
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     setError('');
-    console.log('Attempting Apple Sign In'); // Logging
+    console.log('Attempting Apple Sign In');
 
     try {
       const credential = await AppleAuthentication.signInAsync({
@@ -359,20 +352,24 @@ const handleVerify = useCallback(async (code: string) => {
         ],
       });
       
+      if (!signIn) {
+        throw new Error('SignIn object is not available');
+      }
+
       const signInAttempt = await signIn.create({
         strategy: 'oauth_apple',
-        identifier: credential.identityToken,
+        identifier: credential.identityToken || '',
       });
 
       if (signInAttempt.status === 'complete') {
         await setActive({ session: signInAttempt.createdSessionId });
-        console.log('Apple Sign In successful, redirecting to home'); // Logging
+        console.log('Apple Sign In successful, redirecting to home');
         router.replace('/');
       }
     } catch (e: any) {
       if (e.code === 'ERR_CANCELED') {
         setError('Apple sign-in was canceled.');
-        console.log('Apple Sign In canceled'); // Logging
+        console.log('Apple Sign In canceled');
       } else {
         setError(getErrorMessage(e));
       }
@@ -385,23 +382,23 @@ const handleVerify = useCallback(async (code: string) => {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError('');
-    console.log('Attempting Google Sign In'); // Logging
+    console.log('Attempting Google Sign In');
 
     try {
       const result = await promptAsync();
-      if (result?.type === 'success') {
+      if (result?.type === 'success' && signIn) {
         const signInAttempt = await signIn.create({
           strategy: 'oauth_google',
-          identifier: result.authentication.accessToken,
+          identifier: result.authentication?.accessToken || '',
         });
 
         if (signInAttempt.status === 'complete') {
           await setActive({ session: signInAttempt.createdSessionId });
-          console.log('Google Sign In successful, redirecting to home'); // Logging
+          console.log('Google Sign In successful, redirecting to home');
           router.replace('/');
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error signing in with Google", err);
       setError(getErrorMessage(err));
     } finally {
@@ -414,13 +411,13 @@ const handleVerify = useCallback(async (code: string) => {
   const switchToEmail = () => {
     setStep('email');
     setError('');
-    console.log('Switched to email sign-in'); // Logging
+    console.log('Switched to email sign-in');
   };
 
   const switchToPhone = () => {
     setStep('phone');
     setError('');
-    console.log('Switched to phone sign-in'); // Logging
+    console.log('Switched to phone sign-in');
   };
 
   return (
@@ -437,7 +434,7 @@ const handleVerify = useCallback(async (code: string) => {
                 <AnimatedView 
                   isVisible={!isVerificationStep} 
                   position="relative"
-                  height={500} // Increased height to accommodate content
+                  height={500}
                 >
                   {/* Phone step */}
                   <AnimatedView isVisible={step === 'phone'} position="absolute" top={0} left={0} right={0}>
@@ -463,7 +460,7 @@ const handleVerify = useCallback(async (code: string) => {
                 <AnimatedView 
                   isVisible={isVerificationStep}
                   position="relative"
-                  height={350} // Increased height for VerificationStep
+                  height={350}
                 >
                   <VerificationStep 
                     identifier={identifier} 
