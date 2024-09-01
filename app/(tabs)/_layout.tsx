@@ -1,9 +1,10 @@
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import React, { useRef, useEffect } from 'react';
 import { useColorScheme } from '../../hooks/useColorScheme';
 import { Image, ImageSourcePropType, View, Animated, Easing } from "react-native";
 import { icons } from "@/constants";
 import { useNavigation } from '@react-navigation/native';
+import { supabase } from '../../lib/supabase'; // Adjust the import path as needed
 
 const AnimatedImage = Animated.createAnimatedComponent(Image);
 
@@ -75,6 +76,17 @@ const TabIcon = ({
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
+  const router = useRouter();
+  
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        router.replace('/(auth)/login');
+      }
+    };
+    checkSession();
+  }, []);
   
   return (
     <Tabs

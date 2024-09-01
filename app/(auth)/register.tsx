@@ -13,36 +13,10 @@ import {
   Keyboard,
 } from "react-native";
 import { MaterialIcons, Ionicons, AntDesign, Feather, FontAwesome } from "@expo/vector-icons";
-import { useSignUp } from '@clerk/clerk-expo';
 import { router } from "expo-router";
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { supabase } from '../../lib/supabase';
 import axios from 'axios';
-
-interface VerificationResult {
-  status: string;
-  verifications: {
-    phoneNumber: { status: string | null };
-  };
-}
-
-interface SignUpResource {
-  create: (params: { 
-    emailAddress: string; 
-    password: string; 
-    phoneNumber: string;
-    firstName: string;
-    lastName: string;
-  }) => Promise<any>;
-  preparePhoneNumberVerification: (params: { strategy: string }) => Promise<any>;
-  prepareEmailAddressVerification: (params: { strategy: string }) => Promise<any>;
-  attemptPhoneNumberVerification: (params: { code: string }) => Promise<any>;
-  attemptEmailAddressVerification: (params: { code: string }) => Promise<any>;
-}
-
-interface SignUpHookResult {
-  isLoaded: boolean;
-  signUp: SignUpResource;
-}
 
 const Register: React.FC = () => {
   const [firstName, setFirstName] = useState<string>("");
@@ -52,10 +26,8 @@ const Register: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState<string>("");
   const [dateOfBirth, setDateOfBirth] = useState<Date>(new Date());
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
-  const [pendingVerification, setPendingVerification] = useState<boolean>(false);
-  const [code, setCode] = useState<string>("");
-
-  const { signUp, isLoaded } = useSignUp() as SignUpHookResult;
+  const [verificationCode, setVerificationCode] = useState<string>("");
+  const [isVerifying, setIsVerifying] = useState<boolean>(false);
 
   const isAtLeast18 = (birthDate: Date): boolean => {
     const today = new Date();
@@ -67,90 +39,92 @@ const Register: React.FC = () => {
     return age >= 18;
   };
 
-  const onSignUpPress = async () => {
-    if (!isLoaded) return;
+  const formatPhoneNumber = (number: string): string => {
+    // Remove all non-digit characters
+    const digits = number.replace(/\D/g, '');
+    
+    // Remove the leading '0' if present
+    const nationalNumber = digits.startsWith('0') ? digits.slice(1) : digits;
+    
+    // Ensure the phone number always includes the country code
+    return `+61${nationalNumber}`;
+  };
 
+  const onSignUpPress = async () => {
     // if (!isAtLeast18(dateOfBirth)) {
     //   Alert.alert("Age Restriction", "You must be at least 18 years old to register.");
     //   return;
     // }
 
     try {
-      await signUp.create({
-        emailAddress: email,
-        password,
-        phoneNumber,
-        firstName,
-        lastName,
-      });
-    
-      // TODO: change it to phone verification
-      await signUp.prepareEmailAddressVerification({ strategy: 'email_code' })
-      // await signUp.preparePhoneNumberVerification({ strategy: "phone_code" });
+      const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+      console.log("Attempting to sign up with phone number:", formattedPhoneNumber);
 
-      console.log("Sign-up initialized, phone verification prepared");
-      setPendingVerification(true);
+      const { data, error } = await supabase.auth.signUp({
+        phone: formattedPhoneNumber,
+        password,
+        options: {
+          data: {
+            email,
+            first_name: firstName,
+            last_name: lastName,
+            date_of_birth: dateOfBirth.toISOString().split('T')[0],
+          }
+        }
+      });
+
+      if (error) throw error;
+
+      if (data) {
+        console.log("Sign-up initiated, phone verification required");
+        setIsVerifying(true);
+      }
     } catch (err: any) {
-      console.error("Error initializing sign-up:", JSON.stringify(err, null, 2));
-      Alert.alert("Sign-Up Error", err.errors?.[0]?.message || "An error occurred while setting up your account. Please try again.");
+      console.error("Error signing up:", err.message);
+      Alert.alert("Sign-Up Error", err.message || "An error occurred while setting up your account. Please try again.");
     }
   };
 
-  const onPressVerify = async () => {
-    if (!isLoaded || !signUp) {
-      console.log("SignUp is not loaded");
-      return;
-    }
-  
+  const onVerifyPress = async () => {
     try {
-      // router.push(`/(tabs)/profile`)
-      console.log(`Verifying phone with code: ${code}`);
+      const formattedPhoneNumber = formatPhoneNumber(phoneNumber);
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: formattedPhoneNumber,
+        token: verificationCode,
+        type: 'sms'
+      });
 
-      // TODO: change it to phone verification
-      const verificationResult = await signUp.attemptEmailAddressVerification({ code });
-      // const verificationResult = await signUp.attemptPhoneNumberVerification({ code });
+      if (error) throw error;
 
-      
-  
-      console.log(`Verification result:`, verificationResult);
-  
-      //TODO change to phone verification
-      if (verificationResult.status === 'complete' || verificationResult.verifications.emailAddress.status === 'verified') {
-
-        //write to mongoDB
+      if (data.user) {
         try {
           const userData = {
-            clerkId: verificationResult.createdUserId,
+            supabaseId: data.user.id,
             email,
             phoneNumber,
             firstName,
             lastName,
-            dateOfBirth: dateOfBirth.toISOString().split('T')[0], // Format as YYYY-MM-DD
+            dateOfBirth: dateOfBirth.toISOString().split('T')[0],
           };
-  
-          console.log("Sending user data to server:", userData);
-  
+
           const response = await axios.post("http://192.168.0.32:3000/register", userData);
           
-        console.log("MongoDB successfuly registered user");
-        Alert.alert("Sign-Up Successful", "Your account has been created successfully!");
-        router.push(`/(tabs)/profile`);
-      } catch (error) {
-        console.error("Error registering user in MongoDB:", error);
-        if (axios.isAxiosError(error)) {
-          console.error("Axios error details:", error.response?.data || error.message);
+          console.log("MongoDB successfully registered user");
+          Alert.alert("Sign-Up Successful", "Your account has been created and verified successfully!");
+          router.push(`/(tabs)/profile`);
+        } catch (error) {
+          console.error("Error registering user in MongoDB:", error);
+          if (axios.isAxiosError(error)) {
+            console.error("Axios error details:", error.response?.data || error.message);
+          }
+          Alert.alert("Registration Error", "Failed to register user in the database. Please try again.");
         }
-        Alert.alert("Registration Error", "Failed to register user in the database. Please try again.");
       }
-    } else {
-      console.log("Verification incomplete");
-      Alert.alert("Verification Incomplete", "Please try verifying your email again.");
+    } catch (err: any) {
+      console.error("Verification error:", err.message);
+      Alert.alert("Verification Error", err.message || "An error occurred during verification. Please try again.");
     }
-  } catch (err: any) {
-    console.error("Verification error:", JSON.stringify(err, null, 2));
-    Alert.alert("Verification Error", err.errors?.[0]?.message || "An unknown error occurred during verification.");
-  }
-};
+  };
 
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
@@ -160,113 +134,121 @@ const Register: React.FC = () => {
           style={{ flex: 1, width: '100%' }}
         >
           <ScrollView contentContainerStyle={styles.scrollViewContent}>
-            {!pendingVerification ? (
+            {!isVerifying ? (
               <View style={styles.form}>
                 <Text style={styles.title}>Register for Jivee</Text>
-          
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
-            <TextInput
-              value={firstName}
-              onChangeText={setFirstName}
-              placeholder="Enter your first name"
-              style={styles.input}
-            />
-          </View>
+                
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
+                  <TextInput
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholder="Enter your first name"
+                    style={styles.input}
+                  />
+                </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
-            <TextInput
-              value={lastName}
-              onChangeText={setLastName}
-              placeholder="Enter your last name"
-              style={styles.input}
-            />
-          </View>
+                <View style={styles.inputContainer}>
+                  <Ionicons name="person-outline" size={24} color="black" style={styles.icon} />
+                  <TextInput
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholder="Enter your last name"
+                    style={styles.input}
+                  />
+                </View>
 
-          <View style={styles.inputContainer}>
-            <MaterialIcons name="email" size={24} color="black" style={styles.icon} />
-            <TextInput
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Enter your email"
-              keyboardType="email-address"
-              style={styles.input}
-            />
-          </View>
+                <View style={styles.inputContainer}>
+                  <MaterialIcons name="email" size={24} color="black" style={styles.icon} />
+                  <TextInput
+                    value={email}
+                    onChangeText={setEmail}
+                    placeholder="Enter your email"
+                    keyboardType="email-address"
+                    style={styles.input}
+                  />
+                </View>
 
-          <View style={styles.inputContainer}>
-            <Feather name="phone" size={24} color="black" style={styles.icon} />
-            <TextInput
-              value={phoneNumber}
-              onChangeText={setPhoneNumber}
-              placeholder="Enter your phone number"
-              keyboardType="phone-pad"
-              style={styles.input}
-            />
-          </View>
-
-          <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
-            <FontAwesome name="calendar" size={24} color="black" style={styles.icon} />
-            <Text style={styles.input}>
-              {dateOfBirth.toDateString()}
-            </Text>
-          </Pressable>
-
-          {showDatePicker && (
-            <DateTimePicker
-              value={dateOfBirth}
-              mode="date"
-              display="default"
-              onChange={(event, selectedDate) => {
-                const currentDate = selectedDate || dateOfBirth;
-                setShowDatePicker(Platform.OS === 'ios');
-                setDateOfBirth(currentDate);
-              }}
-            />
-          )}
-
-          <View style={styles.inputContainer}>
-            <AntDesign name="lock1" size={24} color="black" style={styles.icon} />
-            <TextInput
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              placeholder="Enter your password"
-              style={styles.input}
-            />
-          </View>
-
-          <Pressable onPress={onSignUpPress} style={styles.button}>
-            <Text style={styles.buttonText}>Register</Text>
-          </Pressable>
-
-          <Pressable onPress={() => router.replace("/login")} style={styles.linkButton}>
-            <Text style={styles.linkButtonText}>Already have an account? Sign In</Text>
-          </Pressable>
-          </View>
-      ) : (
-        <View style={styles.verificationContainer}>
-          <Text style={styles.verificationText}>
-            Enter the verification code sent to your phone
-          </Text>
+                <View style={styles.inputContainer}>
+          <Feather name="phone" size={24} color="black" style={styles.icon} />
           <TextInput
-            value={code}
-            onChangeText={setCode}
-            placeholder="Verification Code"
-            keyboardType="number-pad"
-            style={styles.verificationInput}
+            value={phoneNumber}
+            onChangeText={(text) => {
+              // Remove any non-digit characters
+              const cleaned = text.replace(/\D/g, '');
+              setPhoneNumber(cleaned);
+            }}
+            placeholder="Enter your phone number"
+            keyboardType="phone-pad"
+            style={styles.input}
           />
-          <Pressable onPress={onPressVerify} style={styles.button}>
-            <Text style={styles.buttonText}>Verify</Text>
-          </Pressable>
         </View>
-      )}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  </View>
-</TouchableWithoutFeedback>
-);
+
+                <Pressable onPress={() => setShowDatePicker(true)} style={styles.inputContainer}>
+                  <FontAwesome name="calendar" size={24} color="black" style={styles.icon} />
+                  <Text style={styles.input}>
+                    {dateOfBirth.toDateString()}
+                  </Text>
+                </Pressable>
+
+                {showDatePicker && (
+                  <DateTimePicker
+                    value={dateOfBirth}
+                    mode="date"
+                    display="default"
+                    onChange={(event, selectedDate) => {
+                      const currentDate = selectedDate || dateOfBirth;
+                      setShowDatePicker(Platform.OS === 'ios');
+                      setDateOfBirth(currentDate);
+                    }}
+                  />
+                )}
+
+                <View style={styles.inputContainer}>
+                  <AntDesign name="lock1" size={24} color="black" style={styles.icon} />
+                  <TextInput
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry
+                    placeholder="Enter your password"
+                    style={styles.input}
+                  />
+                </View>
+
+                <Pressable onPress={onSignUpPress} style={styles.button}>
+                  <Text style={styles.buttonText}>Register</Text>
+                </Pressable>
+
+                <Pressable onPress={() => router.replace("/login")} style={styles.linkButton}>
+                  <Text style={styles.linkButtonText}>Already have an account? Sign In</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.form}>
+                <Text style={styles.title}>Verify Your Phone</Text>
+                <Text style={styles.verificationText}>
+                  Enter the verification code sent to your phone
+                </Text>
+                <View style={styles.inputContainer}>
+                  <AntDesign name="Safety" size={24} color="black" style={styles.icon} />
+                  <TextInput
+                    value={verificationCode}
+                    onChangeText={setVerificationCode}
+                    placeholder="Enter verification code"
+                    keyboardType="number-pad"
+                    style={styles.input}
+                  />
+                </View>
+                <Pressable onPress={onVerifyPress} style={styles.button}>
+                  <Text style={styles.buttonText}>Verify</Text>
+                </Pressable>
+              </View>
+            )}
+          </ScrollView>
+        </KeyboardAvoidingView>
+      </View>
+    </TouchableWithoutFeedback>
+  );
 };
 
 const styles = StyleSheet.create({

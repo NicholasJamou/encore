@@ -1,8 +1,7 @@
 import mongoose, { Document, Model, Schema } from 'mongoose';
-import bcrypt from 'bcrypt';
 
 interface IUser extends Document {
-  clerkId: string;
+  supabaseId: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -22,7 +21,7 @@ interface IUser extends Document {
 }
 
 const userSchema: Schema<IUser> = new mongoose.Schema({
-  clerkId: {
+  supabaseId: {
     type: String,
     required: true,
   },
@@ -81,13 +80,6 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   hobbies: [String],
 });
 
-userSchema.pre('save', async function(next) {
-  if (this.isModified('password') && !this.password.startsWith('$2b$')) {
-    this.password = await bcrypt.hash(this.password, 10);
-  }
-  next();
-});
-
-const User: Model<IUser> = mongoose.model<IUser>("User", userSchema);
+const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>("User", userSchema);
 
 export default User;

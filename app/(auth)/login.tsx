@@ -1,5 +1,4 @@
 import React, { useState, useCallback } from 'react';
-import { useSignIn, SignInResource } from '@clerk/clerk-expo';
 import { Link, useRouter } from 'expo-router';
 import { Keyboard, TouchableWithoutFeedback, KeyboardAvoidingView, Platform } from 'react-native';
 import { TamaguiProvider, Theme, Input, Button, Text, YStack, XStack, Spinner, AnimatePresence, Stack } from 'tamagui';
@@ -8,6 +7,8 @@ import * as Google from 'expo-auth-session/providers/google';
 import { AntDesign } from '@expo/vector-icons';
 import { HelloWave } from '@/components/HelloWave';
 import { OtpInput } from "react-native-otp-entry";
+import { supabase } from '../../lib/supabase'; // Assume this is set up correctly
+import axios from 'axios';
 
 // Define types for props and state
 type ErrorMessageProps = { message: string };
@@ -85,9 +86,20 @@ const GoogleSignInButton: React.FC<ButtonProps> = (props) => (
   </AnimatedButton>
 );
 
-// Update PhoneStep, EmailStep, and VerificationStep to use AnimatedButton
+// Update the PhoneStep component to ensure it always includes the country code
 const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail, error }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
+
+  const handlePhoneContinue = () => {
+    // Remove the leading '0' if present
+    const trimmedNumber = phoneNumber.startsWith('0') ? phoneNumber.slice(1) : phoneNumber;
+    
+    // Ensure the phone number always includes the country code
+    const fullPhoneNumber = '+61' + trimmedNumber;
+    
+    console.log('Continuing with phone number:', fullPhoneNumber);
+    onContinue(fullPhoneNumber);
+  };
 
   return (
     <YStack space="$4" width="100%">
@@ -109,13 +121,17 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
           flex={1}
           value={phoneNumber}
           placeholder="Phone Number"
-          onChangeText={setPhoneNumber}
+          onChangeText={(text) => {
+            // Remove any non-digit characters
+            const cleaned = text.replace(/\D/g, '');
+            setPhoneNumber(cleaned);
+          }}
           keyboardType="phone-pad"
         />
       </XStack>
       {error && <ErrorMessage message={error} />}
       <AnimatedButton
-        onPress={() => onContinue('+61' + phoneNumber)}
+        onPress={handlePhoneContinue}
         width="100%"
         backgroundColor="teal"
         color="white"
@@ -143,7 +159,6 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
   );
 };
 
-// Email input step component
 const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone, error }) => {
   const [email, setEmail] = useState('');
 
@@ -188,7 +203,6 @@ const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone
   );
 };
 
-// Verification step component
 const VerificationStep: React.FC<VerificationStepProps> = ({ identifier, onVerify, isLoading, error }) => {
   return (
     <YStack space="$4" width="100%" alignItems="center">
@@ -222,110 +236,106 @@ const VerificationStep: React.FC<VerificationStepProps> = ({ identifier, onVerif
   );
 };
 
-// Main LoginPage component
 export default function LoginPage() {
-  // Clerk authentication hooks
-  const { signIn, setActive, isLoaded } = useSignIn();
   const router = useRouter();
-
-  // State management
   const [step, setStep] = useState<'phone' | 'email' | 'verification'>('phone');
   const [identifier, setIdentifier] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  // Setup Google OAuth
   const [, , promptAsync] = Google.useAuthRequest({
     expoClientId: 'YOUR_EXPO_CLIENT_ID',
     iosClientId: 'YOUR_IOS_CLIENT_ID',
     androidClientId: 'YOUR_ANDROID_CLIENT_ID',
   });
 
-  // Function to get user-friendly error messages
   const getErrorMessage = (err: any): string => {
     console.error('Error details:', JSON.stringify(err, null, 2));
-
-    if (err.errors && Array.isArray(err.errors) && err.errors.length > 0) {
-      const firstError = err.errors[0];
-      switch (firstError.code) {
-        case 'form_code_incorrect':
-          return 'The verification code is incorrect. Please try again.';
-        case 'form_identifier_not_found':
-          return 'No account found with this email or phone number. Please check and try again.';
-        case 'form_param_format_invalid':
-          return 'The email or phone number format is invalid. Please enter a valid email or phone number.';
-        case 'form_password_incorrect':
-          return 'Incorrect password. Please try again.';
-        case 'form_identifier_exists':
-          return 'An account with this email or phone number already exists.';
-        case 'form_code_expired':
-          return 'The verification code has expired. Please request a new one.';
-        case 'rate_limit_exceeded':
-          return 'Too many attempts. Please try again later.';
-        case 'form_param_nil':
-          return 'Please enter a valid email or phone number.';
-        default:
-          return firstError.longMessage || firstError.message || 'An unexpected error occurred. Please try again.';
-      }
+    
+    if (err.message === 'User does not exist. Please sign up first.') {
+      return err.message;
     }
-
+  
+    if (err.status === 400 && err.code === 'validation_failed') {
+      return 'Please enter a valid email address or phone number.';
+    }
+    
+    if (err.message.includes('rate limit')) {
+      return 'Too many attempts. Please try again later.';
+    }
+  
     return err.message || 'An unexpected error occurred. Please try again.';
   };
 
-  // Handle continue button press (for both phone and email)
+  const normalizePhoneNumber = (phone: string) => {
+    // Remove any non-digit characters
+    const digits = phone.replace(/\D/g, '');
+    // Remove leading '0' if present
+    const withoutLeadingZero = digits.startsWith('0') ? digits.slice(1) : digits;
+    // Add '+61' if not already present
+    return withoutLeadingZero.startsWith('61') ? `+${withoutLeadingZero}` : `+61${withoutLeadingZero}`;
+  };
+  
   const handleContinue = useCallback(async (identifierInput: string) => {
-    if (!isLoaded) return;
     setIsLoading(true);
     setError('');
     console.log('Attempting to sign in with identifier:', identifierInput);
-
+  
     try {
-      const { supportedFirstFactors } = await signIn.create({
-        identifier: identifierInput,
+      const normalizedIdentifier = identifierInput.includes('@') 
+        ? identifierInput 
+        : normalizePhoneNumber(identifierInput);
+  
+      console.log('Normalized identifier:', normalizedIdentifier);
+  
+      // Check if the user exists in MongoDB
+      const response = await axios.post('http://192.168.0.32:3000/check-user', {
+        identifier: normalizedIdentifier
       });
-
-      const firstFactor = supportedFirstFactors.find(
-        (factor: any) => factor.strategy === 'phone_code' || factor.strategy === 'email_code'
-      );
-
-      if (firstFactor) {
-        await signIn.prepareFirstFactor({
-          strategy: firstFactor.strategy,
-          phoneNumberId: firstFactor.phoneNumberId,
-          emailAddressId: firstFactor.emailAddressId,
-        });
-        setIdentifier(identifierInput);
-        setStep('verification');
-        console.log('Verification step prepared for:', identifierInput);
-      } else {
-        setError('No supported verification method found for this account.');
-        console.log('No supported verification method found for:', identifierInput);
+  
+      console.log('User check response:', response.data);
+  
+      if (!response.data.exists) {
+        throw new Error('User does not exist. Please sign up first.');
       }
+  
+      // User exists, proceed with Supabase OTP sign-in
+      let { data, error } = await supabase.auth.signInWithOtp({
+        phone: normalizedIdentifier
+      });
+  
+      if (error) throw error;
+  
+      setIdentifier(normalizedIdentifier);
+      setStep('verification');
+      console.log('Verification step prepared for:', normalizedIdentifier);
     } catch (err: any) {
       console.error('Error in handleContinue:', err);
       setError(getErrorMessage(err));
     } finally {
       setIsLoading(false);
     }
-  }, [isLoaded, signIn]);
-
-  // Handle verification
+  }, []);
+  
   const handleVerify = useCallback(async (code: string) => {
-    if (!isLoaded || isLoading) return;
+    if (isLoading) return;
     setIsLoading(true);
     setError('');
     console.log('Attempting to verify code for:', identifier);
-
+  
     try {
-      const completeSignIn = await signIn.attemptFirstFactor({
-        strategy: identifier.includes('@') ? 'email_code' : 'phone_code',
-        code,
+      const { data, error } = await supabase.auth.verifyOtp({
+        phone: identifier.includes('@') ? undefined : identifier,
+        email: identifier.includes('@') ? identifier : undefined,
+        token: code,
+        type: 'sms'
       });
-
-      if (completeSignIn.status === 'complete') {
-        await setActive({ session: completeSignIn.createdSessionId });
-        console.log('Sign in successful, redirecting to home');
-        router.replace('/');
+  
+      if (error) throw error;
+  
+      if (data.session) {
+        console.log('Verification successful. Session:', data.session);
+        router.replace('/(tabs)/profile');
       } else {
         setError('Verification failed. Please try again.');
         console.log('Verification failed for:', identifier);
@@ -336,9 +346,8 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoaded, signIn, setActive, router, identifier, isLoading]);
+  }, [identifier, router, isLoading]);
 
-  // Handle Apple Sign In
   const handleAppleSignIn = async () => {
     setIsLoading(true);
     setError('');
@@ -352,19 +361,16 @@ export default function LoginPage() {
         ],
       });
       
-      if (!signIn) {
-        throw new Error('SignIn object is not available');
-      }
-
-      const signInAttempt = await signIn.create({
-        strategy: 'oauth_apple',
-        identifier: credential.identityToken || '',
+      const { data, error } = await supabase.auth.signInWithIdToken({
+        provider: 'apple',
+        token: credential.identityToken!,
       });
 
-      if (signInAttempt.status === 'complete') {
-        await setActive({ session: signInAttempt.createdSessionId });
+      if (error) throw error;
+
+      if (data.user) {
         console.log('Apple Sign In successful, redirecting to home');
-        router.replace('/');
+        router.replace('/(tabs)/profile');
       }
     } catch (e: any) {
       if (e.code === 'ERR_CANCELED') {
@@ -378,7 +384,6 @@ export default function LoginPage() {
     }
   };
 
-  // Handle Google Sign In
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     setError('');
@@ -386,16 +391,17 @@ export default function LoginPage() {
 
     try {
       const result = await promptAsync();
-      if (result?.type === 'success' && signIn) {
-        const signInAttempt = await signIn.create({
-          strategy: 'oauth_google',
-          identifier: result.authentication?.accessToken || '',
+      if (result?.type === 'success') {
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: result.authentication?.accessToken!,
         });
 
-        if (signInAttempt.status === 'complete') {
-          await setActive({ session: signInAttempt.createdSessionId });
+        if (error) throw error;
+
+        if (data.user) {
           console.log('Google Sign In successful, redirecting to home');
-          router.replace('/');
+          router.replace('/(tabs)/profile');
         }
       }
     } catch (err: any) {
@@ -430,13 +436,11 @@ export default function LoginPage() {
           >
             <YStack f={1} jc="center" ai="center" p="$4" space="$6">
               <YStack space="$1" width="100%" maxWidth={400}>
-                {/* Animated container for Phone and Email steps */}
                 <AnimatedView 
                   isVisible={!isVerificationStep} 
                   position="relative"
                   height={500}
                 >
-                  {/* Phone step */}
                   <AnimatedView isVisible={step === 'phone'} position="absolute" top={0} left={0} right={0}>
                     <PhoneStep 
                       onContinue={handleContinue} 
@@ -445,7 +449,6 @@ export default function LoginPage() {
                       error={error}
                     />
                   </AnimatedView>
-                  {/* Email step */}
                   <AnimatedView isVisible={step === 'email'} position="absolute" top={0} left={0} right={0}>
                     <EmailStep 
                       onContinue={handleContinue} 
@@ -456,7 +459,6 @@ export default function LoginPage() {
                   </AnimatedView>
                 </AnimatedView>
 
-                {/* Verification step */}
                 <AnimatedView 
                   isVisible={isVerificationStep}
                   position="relative"
@@ -470,7 +472,6 @@ export default function LoginPage() {
                   />
                 </AnimatedView>
                 
-                {/* Social sign-in buttons */}
                 <AnimatedView isVisible={!isVerificationStep} width="100%">
                   <YStack space="$2" width="100%">
                     <AppleSignInButton 

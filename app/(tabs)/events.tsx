@@ -1,8 +1,8 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { StyleSheet, Text, View, RefreshControl } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
 import BigList from 'react-native-big-list';
 import debounce from 'lodash/debounce';
+import { supabase } from '../../lib/supabase'; // Assume this is set up correctly
 
 import EventItem from '../../components/EventItem';
 import SearchBar from '../../components/SearchBar';
@@ -21,8 +21,15 @@ const EventsScreen: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [cityFilter, setCityFilter] = useState('');
   const [showCityFilter, setShowCityFilter] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
   
-  const { userId } = useAuth();
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUserId(user?.id || null);
+    };
+    fetchUser();
+  }, []);
 
   const eventsQuery = useEvents({ searchQuery, cityFilter });
   const { savedEventsQuery, saveEventMutation, removeEventMutation } = useSavedEvents(userId);
@@ -88,8 +95,8 @@ const EventsScreen: React.FC = () => {
   );
 
   const uniqueCities = useMemo(() => 
-    ['All Cities', 'Melbounre', 'Sydney', 'Brisbane', 'Perth', 'Adelaide', 'Hobart', 'Darwin', 'Canberra'],
-    [allEvents]
+    ['All Cities', 'Melbourne', 'Sydney', 'Brisbane', 'Perth', 'Adelaide', 'Hobart', 'Darwin', 'Canberra'],
+    []
   );
 
   const renderContent = () => {

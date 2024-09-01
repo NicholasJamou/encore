@@ -1,17 +1,29 @@
-import React, { useCallback } from 'react';
-import { StyleSheet, Text, View, ScrollView, ActivityIndicator, RefreshControl, Button, TouchableOpacity } from 'react-native';
-import { SignedOut, useClerk, useUser } from '@clerk/clerk-expo';
+import React, { useCallback, useState, useEffect } from 'react';
+import { StyleSheet, Text, View, ScrollView, ActivityIndicator, RefreshControl, TouchableOpacity } from 'react-native';
 import { useQueryClient } from '@tanstack/react-query';
+import { router } from 'expo-router';
+import { supabase } from '../../lib/supabase'; // Assume this is set up correctly
 import { useUserData } from '../../hooks/useUserData';
 import { useSavedEvents } from '../../hooks/useSavedEvents';
 import { UserInfo } from '../../components/UserInfo';
 import { SavedEventsList } from '../../components/SavedEventsList';
-import { router } from 'expo-router';
 
 const ProfileScreen: React.FC = () => {
-  const { user } = useUser();
+  const [user, setUser] = useState<any>(null);
   const queryClient = useQueryClient();
-  const { signOut } = useClerk();
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      setUser(user);
+    };
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Current session in HomeScreen:', session);
+    };
+    fetchUser();
+    checkSession();
+  }, []);
 
   const { data: userData, isLoading: userLoading, error: userError } = useUserData(user?.id);
   const { savedEventsQuery, removeEventMutation } = useSavedEvents(user?.id);
@@ -24,6 +36,15 @@ const ProfileScreen: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['userData', user?.id] });
     queryClient.invalidateQueries({ queryKey: ['savedEventDetails', user?.id] });
   }, [queryClient, user?.id]);
+
+  const handleSignOut = async () => {
+    try {
+      await supabase.auth.signOut();
+      router.replace('/');
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
+  };
 
   if (userLoading || savedEventsQuery.isLoading) {
     return (
@@ -56,7 +77,7 @@ const ProfileScreen: React.FC = () => {
       {userData && (
         <UserInfo 
           userData={userData} 
-          userEmail={user?.emailAddresses[0].emailAddress || ''}
+          userEmail={user?.email || ''}
         />
       )}
 
@@ -68,7 +89,7 @@ const ProfileScreen: React.FC = () => {
           isSaving={removeEventMutation.isPending}
         />
       )}
-      <TouchableOpacity onPress={() => { signOut(); router.replace('/'); }} style={styles.button}>
+      <TouchableOpacity onPress={handleSignOut} style={styles.button}>
         <Text style={styles.buttonText}>Sign out</Text>
       </TouchableOpacity>
     </ScrollView>
