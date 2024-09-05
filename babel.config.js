@@ -3,7 +3,16 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // Reanimated plugin has to be listed last
+      [
+        'nativewind/babel',
+        {
+          root: ['.'],
+          extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json'],
+          alias: {
+            '@': '.',
+          },
+        },
+      ],
       [
         '@tamagui/babel-plugin',
         {
@@ -12,7 +21,6 @@ module.exports = function(api) {
           logTimings: true,
         }
       ],
-      'transform-inline-environment-variables',
       'react-native-reanimated/plugin',
     ],
   };

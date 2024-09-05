@@ -137,29 +137,25 @@ const EventsScreen: React.FC = () => {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: 'white' }}>
         <AnimatePresence>
-          <MotiView
-            from={{ opacity: 0, translateY: 25 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'spring', duration: 750, delay: 100 }}
-          >
-            <Text
-              style={styles.title}
-            >
-              Events
-            </Text>
-          </MotiView>
-          <MotiView
-            from={{ opacity: 0, translateY: 40 }}
-            animate={{ opacity: 1, translateY: 0 }}
-            transition={{ type: 'timing', duration: 750, delay: 250 }}
-          >
-            <Text
-              style={styles.body}
-            >
-              See who else is going: Click on your upcoming events to view attendees in your feed
-            </Text>
-          </MotiView>
-        </AnimatePresence>
+        <MotiView
+          key="title"
+          from={{ opacity: 0, translateY: 25 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'spring', duration: 750, delay: 100 }}
+        >
+          <Text style={styles.title}>Events</Text>
+        </MotiView>
+        <MotiView
+          key="description"
+          from={{ opacity: 0, translateY: 40 }}
+          animate={{ opacity: 1, translateY: 0 }}
+          transition={{ type: 'timing', duration: 750, delay: 250 }}
+        >
+          <Text style={styles.body}>
+            See who else is going: Click on your upcoming events to view attendees in your feed
+          </Text>
+        </MotiView>
+      </AnimatePresence>
         <View style={{ flex: 1 }}>
           <View style={{ flexDirection: 'row', padding: 10, backgroundColor: 'white', borderBottomWidth: 1, borderBottomColor: '#e0e0e0' }}>
             <SearchBar onChangeText={debouncedSearch} />
