@@ -1,6 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "types": ["@tamagui/core"],
     "strict": true,
     "baseUrl": ".",
     "esModuleInterop": true,

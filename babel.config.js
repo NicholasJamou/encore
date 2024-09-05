@@ -3,16 +3,16 @@ module.exports = function(api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
+      // Reanimated plugin has to be listed last
       [
-        'nativewind/babel',
+        '@tamagui/babel-plugin',
         {
-          root: ['.'],
-          extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json'],
-          alias: {
-            '@': '.',
-          },
-        },
+          components: ['tamagui'],
+          config: './tamagui.config.ts',
+          logTimings: true,
+        }
       ],
+      'transform-inline-environment-variables',
       'react-native-reanimated/plugin',
     ],
   };

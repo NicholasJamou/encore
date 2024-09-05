@@ -13,7 +13,7 @@ const useEvents = ({ searchQuery, cityFilter }: UseEventsProps): UseInfiniteQuer
       const page = typeof pageParam === 'number' ? pageParam : 1;
       const queryParams = new URLSearchParams({
         page: page.toString(),
-        limit: '20',
+        limit: '25',
         ...(searchQuery && { search: searchQuery }),
         ...(cityFilter && { city: cityFilter }),
       });

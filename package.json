@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@clerk/clerk-expo": "^2.1.1",
+    "@expo-google-fonts/inter": "^0.2.3",
     "@expo/metro-runtime": "^3.2.3",
     "@expo/vector-icons": "^14.0.2",
     "@react-native-async-storage/async-storage": "1.23.1",
@@ -24,7 +25,11 @@
     "@react-navigation/native": "^6.1.18",
     "@react-navigation/stack": "^6.4.1",
     "@supabase/supabase-js": "^2.45.3",
-    "@tamagui/config": "^1.109.2",
+    "@tamagui/animations-css": "^1.110.1",
+    "@tamagui/animations-moti": "^1.110.1",
+    "@tamagui/animations-reanimated": "^1.110.1",
+    "@tamagui/babel-plugin": "^1.110.2",
+    "@tamagui/config": "^1.110.1",
     "@tamagui/progress": "^1.109.2",
     "@tanstack/react-query": "^5.52.1",
     "@types/bcrypt": "^5.0.2",
@@ -34,7 +39,9 @@
     "@types/jsonwebtoken": "^9.0.6",
     "@types/mongoose": "^5.11.97",
     "@types/nodemailer": "^6.4.15",
+    "add": "^2.0.6",
     "axios": "^1.7.4",
+    "babel-plugin-transform-inline-environment-variables": "^0.4.4",
     "bcrypt": "^5.1.1",
     "debounce": "^2.1.0",
     "expo": "^51.0.28",
@@ -56,6 +63,7 @@
     "expo-web-browser": "~13.0.3",
     "install": "^0.13.0",
     "lottie-react-native": "^6.7.2",
+    "moti": "^0.29.0",
     "nativewind": "^2.0.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
@@ -71,7 +79,7 @@
     "react-native-swiper": "^1.6.0",
     "react-native-url-polyfill": "^2.0.0",
     "react-native-web": "^0.19.12",
-    "tamagui": "^1.109.2"
+    "tamagui": "^1.110.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

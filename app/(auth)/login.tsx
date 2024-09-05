@@ -108,7 +108,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         <XStack 
           borderWidth={1} 
           borderColor="$gray5" 
-          borderRadius="$2" 
+          borderRadius={2}
           paddingHorizontal="$2" 
           paddingVertical="$1" 
           marginRight="$2"
@@ -135,7 +135,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         width="100%"
         backgroundColor="teal"
         color="white"
-        borderRadius="30"
+        borderRadius={30}
         disabled={isLoading}
       >
         {isLoading ? <Spinner color="white" /> : <Text color="white">Continue</Text>}
@@ -151,7 +151,7 @@ const PhoneStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToEmail
         width="100%"
         variant="outlined"
         pressStyle={{ scale: 0.97 }}
-        borderRadius="30"
+        borderRadius={30}
       >
         Sign in with Email instead
       </Button>
@@ -180,7 +180,7 @@ const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone
         disabled={isLoading}
         pressStyle={{ scale: 0.97 }}
         backgroundColor="teal"
-        borderRadius="30"
+        borderRadius={30}
       >
         {isLoading ? <Spinner color="$teal10" /> : "Continue"}
       </Button>
@@ -195,7 +195,7 @@ const EmailStep: React.FC<StepProps> = ({ onContinue, isLoading, onSwitchToPhone
         width="100%"
         variant="outlined"
         pressStyle={{ scale: 0.97 }}
-        borderRadius="30"
+        borderRadius={30}
       >
         Sign in with Phone instead
       </Button>
@@ -477,12 +477,12 @@ export default function LoginPage() {
                     <AppleSignInButton 
                       onPress={handleAppleSignIn}
                       disabled={isLoading}
-                      borderRadius="30"
+                      borderRadius={30}
                     />
                     <GoogleSignInButton 
                       onPress={handleGoogleSignIn}
                       disabled={isLoading}
-                      borderRadius="30"
+                      borderRadius={30}
                     />
                   </YStack>
                 </AnimatedView>

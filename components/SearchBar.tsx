@@ -9,6 +9,7 @@ const SearchBar: React.FC<SearchBarProps> = memo(({ onChangeText }) => (
   <TextInput
     style={styles.searchInput}
     placeholder="Search events..."
+    placeholderTextColor="gray"
     onChangeText={onChangeText}
   />
 ));
